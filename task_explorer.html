@@ -1,0 +1,3358 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>작업 탐색기</title>
+  <style>
+    :root {
+      --bg: #f2f6ff;
+      --panel: #ffffff;
+      --line: #d8e0ef;
+      --text: #12213a;
+      --muted: #65728c;
+      --primary: #1f6feb;
+      --primary-soft: #e8efff;
+      --danger: #ef4444;
+      --danger-soft: #ffe9e9;
+      --shadow: 0 14px 40px rgba(18, 33, 58, 0.08);
+      --sidebar-width: clamp(170px, 18vw, 220px);
+      --memo-width: clamp(280px, 30vw, 360px);
+      --base-font: clamp(13px, 0.95vw, 16px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: var(--base-font);
+      color: var(--text);
+      background: radial-gradient(120% 120% at 0% 0%, #e8f0ff 0%, var(--bg) 40%, #f9fbff 100%);
+      min-height: 100vh;
+      padding: 16px 22px;
+      overflow-x: hidden;
+    }
+
+    .app {
+      width: min(100%, calc(100vw - 24px));
+      max-width: none;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 12px 0;
+      font-size: 28px;
+      letter-spacing: 0.02em;
+    }
+
+    .subtle {
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .side-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .side-tabs button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .side-tabs button.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: #1f4ebf;
+    }
+
+    .side-section-title {
+      display: inline-block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 2px 4px 6px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .custom-tab-create {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .custom-tab-create input {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+      min-width: 0;
+    }
+
+    .custom-tab-create button {
+      padding: 8px 10px;
+      min-width: auto;
+      font-weight: 700;
+    }
+
+    .custom-tab-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 2px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 4px;
+      min-height: 100px;
+      padding-bottom: 8px;
+      padding-top: 2px;
+    }
+
+    .date-section {
+      display: none;
+      margin-top: 2px;
+      transition: max-height 0.2s ease;
+    }
+
+    .date-section.open {
+      display: block;
+    }
+
+    .date-section-toggle {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      text-align: left;
+      width: 100%;
+    }
+
+    .custom-tab-item {
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+
+    .custom-tab-item.dragging-target {
+      outline: 2px dashed var(--primary);
+      outline-offset: -2px;
+    }
+
+    .custom-tab-open {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 10px;
+      font-weight: 700;
+      padding: 10px 12px;
+      cursor: pointer;
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .custom-tab-open:hover {
+      border-color: #b6c7ea;
+      background: #f8fbff;
+    }
+
+    .custom-tab-open.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: #1f4ebf;
+    }
+
+    .custom-tab-delete {
+      border: 1px solid #f5bcbc;
+      background: #fff6f6;
+      color: #8a1e1e;
+      border-radius: 10px;
+      cursor: pointer;
+      padding: 0 0;
+      font-size: 14px;
+      min-width: 26px;
+      width: 26px;
+      font-weight: 700;
+      white-space: nowrap;
+      align-self: stretch;
+    }
+
+    .custom-tab-delete:hover {
+      background: #ffecec;
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+      margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, var(--memo-width));
+  gap: 12px;
+  align-items: start;
+}
+
+.memo-panel {
+  width: 100%;
+  max-width: none;
+}
+
+.memo-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.memo-subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 10px 0;
+}
+
+.memo-input {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+
+.memo-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+}
+
+.memo-empty {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.path-row {
+  display: flex;
+  align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .crumb {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .crumb.current {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: #1f4ebf;
+    }
+
+    .sep {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .path-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 130px 140px auto;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .form-grid input,
+    .form-grid button,
+    .inline-check,
+    .task-title,
+    .task-actions input {
+      font-family: inherit;
+    }
+
+    .form-grid input,
+    .inline-check,
+    .task-actions input,
+    .form-grid button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-grid input:focus,
+    .task-actions input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+    }
+
+    .inline-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .inline-check input {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      margin: 0;
+      accent-color: var(--primary);
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .btn-add {
+      background: var(--primary);
+      color: white;
+      min-width: 110px;
+    }
+
+    .btn-secondary {
+      background: #eaf0fb;
+      color: #1f366f;
+    }
+
+    .btn-done {
+      background: #f3f6ff;
+      color: #1d47af;
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: #a70000;
+      font-size: 12px;
+      padding: 7px 10px;
+    }
+
+    .btn-move {
+      background: #f7f9ff;
+      color: #30446a;
+      font-size: 12px;
+      padding: 7px 10px;
+      min-width: 34px;
+    }
+
+    .btn-star {
+      width: 34px;
+      min-width: 34px;
+      padding: 7px 0;
+      font-size: 16px;
+      color: #8d95a8;
+      background: #fff;
+    }
+
+    .btn-star.active {
+      color: #f0a500;
+    }
+
+    .storage-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      min-height: 140px;
+      padding-bottom: 8px;
+      max-height: 680px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .task-item {
+      border: 1px solid var(--line);
+      background: #fefefe;
+      border-radius: 10px;
+      padding: 18px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 10px;
+      position: relative;
+      margin-bottom: 10px;
+      cursor: grab;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      min-height: 64px;
+      max-height: none;
+      overflow: visible;
+    }
+
+    .task-item:hover {
+      border-color: #b6c7ea;
+      box-shadow: 0 8px 20px rgba(15, 42, 95, 0.08);
+    }
+
+    .task-item.dragging {
+      opacity: 0.7;
+      transform: scale(0.995);
+    }
+
+    .task-item.drag-before {
+      border-top: 2px solid var(--primary);
+    }
+
+    .task-item.drag-into {
+      background: #eef5ff;
+      border: 1px dashed var(--primary);
+    }
+
+    .task-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding-right: 10px;
+    }
+
+    .handle {
+      color: #8b9ebf;
+      user-select: none;
+      pointer-events: none;
+      font-size: 14px;
+    }
+
+    .task-title {
+      font-size: clamp(12px, 1vw, 15px);
+      font-weight: 600;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 10px 0;
+      border: 0;
+      background: transparent;
+      flex: 2 1 auto;
+      min-width: 0;
+      color: inherit;
+      text-align: left;
+      min-height: 28px;
+      margin-right: 8px;
+    }
+
+    .task-meta {
+      font-size: clamp(10px, 0.85vw, 12px);
+      color: var(--muted);
+      margin-left: 4px;
+      white-space: nowrap;
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: none;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      -ms-overflow-style: none;
+      width: max-content;
+      max-width: calc(100% - 24px);
+      transition: opacity 0.15s ease;
+    }
+
+    .task-item:hover .task-actions,
+    .task-item:focus-within .task-actions {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .task-actions::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .task-actions button {
+      padding: 7px 10px;
+      font-size: clamp(10px, 0.78vw, 12px);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .priority-input {
+      width: 74px;
+      padding: 7px 8px !important;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .checkbox-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #223;
+      white-space: nowrap;
+    }
+
+    .checkbox-mini input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--primary);
+    }
+
+    .task-item.done {
+      background: #f8fff9;
+      border-color: #9bd3a4;
+    }
+
+    .task-item.done .task-title {
+      color: #2f7e43;
+      text-decoration: line-through;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 20px 8px;
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      background: #fbfdff;
+    }
+
+    .hint {
+      margin: 0;
+      color: #31456a;
+      background: #ecf2ff;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px dashed #bfd1f6;
+    }
+
+    .action-note {
+      margin: 0;
+      color: #3154a1;
+      font-size: 12px;
+    }
+
+    @media (max-width: 800px) {
+      body {
+        padding: 14px;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .side-tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .task-actions {
+        max-width: none;
+        justify-content: flex-start;
+      }
+
+      .task-title {
+        min-width: 180px;
+      }
+
+    .custom-tab-list {
+      max-height: 170px;
+    }
+
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .memo-panel {
+        max-width: none;
+      }
+  }
+
+    @media (max-width: 1100px) {
+      .workspace {
+        grid-template-columns: 150px 1fr;
+      }
+
+      .content-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+      }
+
+      .memo-input {
+        min-height: 180px;
+      }
+
+    }
+
+    @media (max-width: 920px) {
+      :root {
+        --sidebar-width: 132px;
+        --memo-width: 250px;
+      }
+
+      .task-item {
+        padding: 11px 10px;
+      }
+
+      .task-title {
+        font-size: 13px;
+      }
+
+      .task-meta {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>작업 큐 탐색기</h1>
+    <div class="subtle">루트처럼 이동 가능한 작업 구조 + 삭제/우선순위 + 드래그 넣기 + 위/아래 디렉토리 이동</div>
+
+    <div class="workspace">
+      <div class="side-tabs">
+        <button id="tab-all" type="button" class="active">전체</button>
+        <button id="tab-today" type="button">오늘 할일</button>
+        <button id="tab-important" type="button">⭐ 중요</button>
+        <div class="custom-tab-create" style="margin: 10px 0 0;">
+          <button id="toggle-created-date" class="date-section-toggle" type="button" aria-expanded="false">날짜별 보기</button>
+        </div>
+        <div id="created-date-section" class="date-section">
+          <div id="created-date-list" class="custom-tab-list"></div>
+        </div>
+
+        <div class="custom-tab-create" style="margin: 10px 0 0;">
+          <button id="toggle-folder-view" class="date-section-toggle" type="button" aria-expanded="false">폴더별 보기</button>
+        </div>
+        <div id="folder-view-section" class="date-section">
+          <div id="custom-tab-list" class="custom-tab-list"></div>
+        </div>
+        <div class="custom-tab-create" style="margin-top: 12px;">
+          <button id="toggle-list-view" class="date-section-toggle" type="button" aria-expanded="false">목록별 보기</button>
+        </div>
+        <div id="path-view-section" class="date-section">
+          <div id="path-list-list" class="custom-tab-list"></div>
+        </div>
+
+        <div class="path-list-create custom-tab-create" style="margin-top: 12px;">
+          <input id="path-list-name" type="text" placeholder="목록 이름" />
+          <button id="add-path-list" class="btn-secondary" type="button">목록 만들기</button>
+        </div>
+        <div class="custom-tab-create">
+          <input id="custom-tab-name" type="text" placeholder="폴더 이름" />
+          <button id="add-custom-tab" class="btn-secondary" type="button">폴더 만들기</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="content-grid">
+          <div>
+            <div class="panel">
+              <div class="path-title">현재 경로</div>
+              <div id="breadcrumb" class="path-row"></div>
+              <p id="add-context" class="hint">루트를 기준으로 작업을 추가합니다.</p>
+              <p id="mode-hint" class="action-note">현재 모드: 전체</p>
+
+              <form id="add-form" class="form-grid">
+                <input id="task-input" type="text" placeholder="새 작업 입력" autocomplete="off" />
+                <input id="task-priority" type="number" placeholder="우선순위 (낮을수록 위)" min="-99999" />
+                <label class="inline-check">
+                  <input id="task-today-toggle" type="checkbox" />
+                  오늘 할일로 등록
+                </label>
+                <button class="btn-add" type="submit">작업 추가</button>
+              </form>
+
+              <div class="storage-row">
+                <input id="import-file" type="file" accept="application/json" style="display:none" />
+                <button id="load-state" class="btn-secondary" type="button">폴더에서 불러오기</button>
+                <button id="save-state" class="btn-secondary" type="button">폴더에 저장</button>
+                <button id="export-tree" class="btn-secondary" type="button">작업 구조 내보내기</button>
+                <button id="go-root" class="btn-secondary" type="button">루트로 이동</button>
+                <button id="clear-today" class="btn-danger" type="button" style="display:none;">오늘 할일 비우기</button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="path-title">현재 루트 기준 하위 작업 목록</div>
+              <ul id="task-list" class="task-list"></ul>
+              <div id="empty-state" class="empty">작업이 없습니다.</div>
+            </div>
+          </div>
+
+          <div class="panel memo-panel">
+            <div class="memo-title" id="memo-title">작업 메모</div>
+            <p id="memo-target" class="memo-subtitle">작업을 선택하면 메모를 작성할 수 있습니다.</p>
+            <textarea id="memo-input" class="memo-input" placeholder="선택한 작업 메모 입력" disabled></textarea>
+            <p id="memo-empty" class="memo-empty">현재 작업이 선택되어야 메모를 입력할 수 있습니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'task-explorer-state-v1';
+    const ROOT_ID = 'root';
+    const SAVE_DEBOUNCE_MS = 120;
+    const STATE_VERSION = 2;
+    const CHILD_INDEX_VERSION = 1;
+
+    let state = loadState();
+    let currentParentId = ROOT_ID;
+    let currentViewMode = 'all';
+    let draggingTaskId = null;
+    let draggingCustomTabId = null;
+    let draggingSavedListId = null;
+    let memoTargetTaskId = null;
+    let currentPathListId = null;
+    let currentDateFilterKey = null;
+    let isDateSectionOpen = false;
+    let isFolderViewOpen = false;
+    let isListViewOpen = false;
+    let saveTimer = null;
+    let memoSaveTimer = null;
+    const childrenCache = new Map();
+
+    const breadcrumb = document.getElementById('breadcrumb');
+    const addContext = document.getElementById('add-context');
+    const modeHint = document.getElementById('mode-hint');
+    const addForm = document.getElementById('add-form');
+    const taskInput = document.getElementById('task-input');
+    const taskPriorityInput = document.getElementById('task-priority');
+    const taskTodayInput = document.getElementById('task-today-toggle');
+    const taskList = document.getElementById('task-list');
+    const emptyState = document.getElementById('empty-state');
+    const createdDateList = document.getElementById('created-date-list');
+    const createdDateToggleBtn = document.getElementById('toggle-created-date');
+    const createdDateSection = document.getElementById('created-date-section');
+    const folderViewToggleBtn = document.getElementById('toggle-folder-view');
+    const folderViewSection = document.getElementById('folder-view-section');
+    const pathViewToggleBtn = document.getElementById('toggle-list-view');
+    const pathViewSection = document.getElementById('path-view-section');
+    const goRootBtn = document.getElementById('go-root');
+    const saveStateBtn = document.getElementById('save-state');
+    const loadStateBtn = document.getElementById('load-state');
+    const exportTreeBtn = document.getElementById('export-tree');
+    const importFileInput = document.getElementById('import-file');
+    const tabAll = document.getElementById('tab-all');
+    const tabToday = document.getElementById('tab-today');
+    const tabImportant = document.getElementById('tab-important');
+    const clearTodayBtn = document.getElementById('clear-today');
+    const customTabNameInput = document.getElementById('custom-tab-name');
+    const addCustomTabBtn = document.getElementById('add-custom-tab');
+    const customTabList = document.getElementById('custom-tab-list');
+    const pathListNameInput = document.getElementById('path-list-name');
+    const addPathListBtn = document.getElementById('add-path-list');
+    const pathListContainer = document.getElementById('path-list-list');
+    const memoPanelTitle = document.getElementById('memo-title');
+    const memoPanelTarget = document.getElementById('memo-target');
+    const memoPanelInput = document.getElementById('memo-input');
+    const memoPanelEmpty = document.getElementById('memo-empty');
+    const DATA_FILE_NAME = 'task-explorer-state.json';
+    const TASK_TREE_EXPORT_NAME = 'task-tree.txt';
+
+    function uid(prefix = 't') {
+      return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+    }
+
+    function sanitizeTaskTitle(v) {
+      return (v || '').trim();
+    }
+
+    function parsePriority(v) {
+      const text = (v || '').toString().trim();
+      if (!text) return null;
+      const parsed = Number(text);
+      if (Number.isNaN(parsed) || !Number.isFinite(parsed)) return null;
+      return parsed;
+    }
+
+    function sanitizeCustomTabName(v) {
+      return sanitizeTaskTitle(v);
+    }
+
+    function getNowIsoString() {
+      return new Date().toISOString();
+    }
+
+    function formatDateKey(raw) {
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = `${date.getMonth() + 1}`.padStart(2, '0');
+      const day = `${date.getDate()}`.padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateLabel(raw) {
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit'
+      });
+    }
+
+    function formatCreatedAt(raw) {
+      if (!raw) return '';
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleString('ko-KR', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function dedupeCustomTabs(tabs) {
+      const seen = new Set();
+      const out = [];
+      for (let i = 0; i < tabs.length; i += 1) {
+        const tab = tabs[i];
+        if (!tab || !tab.id) continue;
+        const id = String(tab.id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        out.push({
+          id,
+          title: sanitizeCustomTabName(tab.title) || `폴더 ${out.length + 1}`,
+          createdOrder: Number.isFinite(tab.createdOrder) ? tab.createdOrder : i
+        });
+      }
+      return out;
+    }
+
+    function dedupePathLists(lists) {
+      const seen = new Set();
+      const out = [];
+      for (let i = 0; i < lists.length; i += 1) {
+        const list = lists[i];
+        if (!list || !list.id) continue;
+        const id = String(list.id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const rawTasks = Array.isArray(list.taskIds) ? list.taskIds : [];
+        const taskIds = [];
+        const taskSet = new Set();
+        for (let j = 0; j < rawTasks.length; j += 1) {
+          const taskId = String(rawTasks[j]);
+          if (taskSet.has(taskId)) continue;
+          taskSet.add(taskId);
+          taskIds.push(taskId);
+        }
+
+        out.push({
+          id,
+          title: sanitizeCustomTabName(list.title) || `목록 ${out.length + 1}`,
+          createdOrder: Number.isFinite(list.createdOrder) ? list.createdOrder : i,
+          taskIds
+        });
+      }
+      return out;
+    }
+
+    function safeGetNode(id) {
+      return state && state.nodes ? state.nodes[id] || null : null;
+    }
+
+    function normalizeChildrenIndexList(parentId, raw) {
+      const parent = safeGetNode(parentId);
+      if (!parent) return [];
+
+      const rawChildren = Array.isArray(raw) ? raw : [];
+      const seen = new Set();
+      const normalized = [];
+      const parentIdText = String(parent.id);
+
+      for (let i = 0; i < rawChildren.length; i += 1) {
+        const childId = String(rawChildren[i]);
+        const child = safeGetNode(childId);
+        if (!child) continue;
+        if (child.id === parentIdText) continue;
+        if (String(child.parentId) !== parentIdText) continue;
+        if (seen.has(childId)) continue;
+        seen.add(childId);
+        normalized.push(childId);
+      }
+
+      return normalized;
+    }
+
+    function normalizeChildrenCacheForParent(parentId) {
+      const parent = safeGetNode(parentId);
+      if (!parent) {
+        childrenCache.delete(String(parentId));
+        return;
+      }
+
+      const id = String(parent.id);
+      const seen = new Set();
+      const deduped = [];
+      const rawChildren = Array.isArray(parent.children) ? parent.children : [];
+
+      for (let i = 0; i < rawChildren.length; i += 1) {
+        const childId = String(rawChildren[i]);
+        const child = safeGetNode(childId);
+        if (!child) continue;
+        if (child.id === id) continue;
+        if (String(child.parentId) !== id) continue;
+        if (seen.has(childId)) continue;
+        seen.add(childId);
+        deduped.push(childId);
+      }
+
+      parent.children = deduped;
+      if (!state.childrenIndex || typeof state.childrenIndex !== 'object') {
+        state.childrenIndex = { version: CHILD_INDEX_VERSION, index: {} };
+      } else if (!state.childrenIndex.index || typeof state.childrenIndex.index !== 'object') {
+        state.childrenIndex.index = {};
+      }
+      state.childrenIndex.index[parent.id] = deduped.slice();
+      childrenCache.set(id, deduped.slice());
+    }
+
+    function rebuildChildrenCache(parentId = null) {
+      if (!state || !state.nodes) {
+        childrenCache.clear();
+        return;
+      }
+
+      if (parentId == null) {
+        childrenCache.clear();
+        const ids = Object.keys(state.nodes);
+        for (let i = 0; i < ids.length; i += 1) {
+          normalizeChildrenCacheForParent(ids[i]);
+        }
+        return;
+      }
+
+      normalizeChildrenCacheForParent(parentId);
+    }
+
+    function loadChildrenIndexFromState() {
+      const source = state && state.childrenIndex;
+      if (!source || typeof source !== 'object') return false;
+      if (source.version !== undefined && source.version !== CHILD_INDEX_VERSION) return false;
+      const index = source.index;
+      if (!index || typeof index !== 'object') return false;
+      const hasIndexEntries = Object.keys(index).length > 0;
+
+      const parentIds = Object.keys(state.nodes || {});
+      if (!parentIds.length) {
+        childrenCache.clear();
+        state.childrenIndex = {
+          version: CHILD_INDEX_VERSION,
+          index: {}
+        };
+        return true;
+      }
+
+      let total = 0;
+      let loadedAny = false;
+
+      childrenCache.clear();
+      for (let i = 0; i < parentIds.length; i += 1) {
+        const parentId = parentIds[i];
+        const parent = safeGetNode(parentId);
+        if (!parent) continue;
+        const raw = index[parentId];
+        if (!Array.isArray(raw)) continue;
+        const normalized = normalizeChildrenIndexList(parentId, raw);
+        parent.children = normalized;
+        childrenCache.set(parent.id, normalized.slice());
+        loadedAny = true;
+        total += normalized.length;
+      }
+
+      for (let i = 0; i < parentIds.length; i += 1) {
+        const parentId = parentIds[i];
+        if (!childrenCache.has(parentId)) {
+          normalizeChildrenCacheForParent(parentId);
+          loadedAny = true;
+        }
+      }
+
+      const normalizedIndex = {};
+      if (state.childrenIndex && typeof state.childrenIndex === 'object' && state.childrenIndex.index) {
+        Object.keys(state.childrenIndex.index).forEach((k) => {
+          normalizedIndex[k] = normalizeChildrenIndexList(k, state.childrenIndex.index[k]);
+        });
+      }
+      state.childrenIndex = {
+        version: CHILD_INDEX_VERSION,
+        index: normalizedIndex
+      };
+
+      return loadedAny || total > 0 || hasIndexEntries;
+    }
+
+    function normalizeAndIndexChildren() {
+      if (!state || !state.nodes) return;
+
+      const ids = Object.keys(state.nodes);
+      const childrenByParent = {};
+      const nextIndex = {};
+
+      for (let i = 0; i < ids.length; i += 1) {
+        const node = state.nodes[ids[i]];
+        if (!node || node.id === ROOT_ID) continue;
+        const pid = String(node.parentId || ROOT_ID);
+        if (!state.nodes[pid] || pid === node.id) {
+          node.parentId = ROOT_ID;
+          if (!childrenByParent[ROOT_ID]) childrenByParent[ROOT_ID] = [];
+          childrenByParent[ROOT_ID].push(node.id);
+          continue;
+        }
+        node.parentId = pid;
+        if (!childrenByParent[pid]) childrenByParent[pid] = [];
+        childrenByParent[pid].push(node.id);
+      }
+
+      for (let i = 0; i < ids.length; i += 1) {
+        const parentId = ids[i];
+        const parent = state.nodes[parentId];
+        if (!parent) continue;
+        const known = childrenByParent[parentId] || [];
+        const seen = new Set();
+        const nextChildren = [];
+        const existing = Array.isArray(parent.children) ? parent.children : [];
+
+        for (let j = 0; j < existing.length; j += 1) {
+          const childId = String(existing[j]);
+          const child = state.nodes[childId];
+          if (!child) continue;
+          if (child.id === parentId) continue;
+          if (String(child.parentId) !== parentId) continue;
+          if (seen.has(childId)) continue;
+          seen.add(childId);
+          nextChildren.push(childId);
+        }
+
+        for (let j = 0; j < known.length; j += 1) {
+          const childId = known[j];
+          const child = state.nodes[childId];
+          if (!child) continue;
+          if (child.id === parentId) continue;
+          if (String(child.parentId) !== parentId) continue;
+          if (seen.has(childId)) continue;
+          seen.add(childId);
+          nextChildren.push(childId);
+        }
+
+        parent.children = nextChildren;
+        nextIndex[parent.id] = nextChildren.slice();
+      }
+
+      childrenCache.clear();
+      const uniqueParentIds = Object.keys(state.nodes);
+      for (let i = 0; i < uniqueParentIds.length; i += 1) {
+        const parentId = uniqueParentIds[i];
+        const parent = safeGetNode(parentId);
+        if (parent) {
+          normalizeChildrenCacheForParent(parent.id);
+        }
+      }
+      state.childrenIndex = {
+        version: CHILD_INDEX_VERSION,
+        index: nextIndex
+      };
+    }
+
+    function removeCustomTabFromRegistry(tabId) {
+      if (!Array.isArray(state.customTabs)) return;
+      const id = String(tabId || '');
+      if (!id) return;
+      state.customTabs = state.customTabs.filter((tab) => String(tab.id) !== id);
+    }
+
+    function createCustomTab(name) {
+      const title = sanitizeCustomTabName(name);
+      if (!title) return;
+
+      const id = uid('folder');
+      const createdOrder = state.nextOrder;
+      state.nextOrder += 1;
+
+      state.customTabs.push({
+        id,
+        title,
+        createdOrder
+      });
+      state.customTabs = dedupeCustomTabs(state.customTabs);
+      const root = getTaskNode(ROOT_ID);
+      if (root && !root.children.includes(id)) {
+        root.children.push(id);
+      }
+
+        state.nodes[id] = {
+          id,
+          title,
+          parentId: ROOT_ID,
+          completed: false,
+          isToday: false,
+          isImportant: false,
+          memo: '',
+          priority: null,
+          createdOrder,
+          createdAt: getNowIsoString(),
+          children: [],
+          isCustomFolder: true
+        };
+
+      rebuildChildrenCache(ROOT_ID);
+      saveState();
+      render();
+    }
+
+    function createPathList(name) {
+      const title = sanitizeCustomTabName(name);
+      if (!title) return;
+
+      const createdOrder = state.nextOrder;
+      state.nextOrder += 1;
+
+      state.pathLists.push({
+        id: uid('list'),
+        title,
+        createdOrder,
+        taskIds: []
+      });
+      state.pathLists = dedupePathLists(state.pathLists);
+      saveState();
+      render();
+    }
+
+    function getPathListById(pathListId) {
+      if (!Array.isArray(state.pathLists)) return null;
+      const id = String(pathListId);
+      for (let i = 0; i < state.pathLists.length; i += 1) {
+        if (String(state.pathLists[i].id) === id) {
+          return state.pathLists[i];
+        }
+      }
+      return null;
+    }
+
+    function addTaskToPathList(taskId, pathListId) {
+      const node = getTaskNode(taskId);
+      const pathList = getPathListById(pathListId);
+      if (!node || !pathList) return;
+      if (node.isCustomFolder) {
+        return;
+      }
+      if (!Array.isArray(pathList.taskIds)) pathList.taskIds = [];
+      const normalizedTaskId = String(taskId);
+      for (let i = 0; i < pathList.taskIds.length; i += 1) {
+        if (String(pathList.taskIds[i]) === normalizedTaskId) return;
+      }
+      pathList.taskIds.push(normalizedTaskId);
+      saveState();
+      if (currentViewMode === 'pathList' && currentPathListId === pathList.id) {
+        render();
+      }
+    }
+
+    function removeTaskFromPathLists(taskId) {
+      if (!Array.isArray(state.pathLists) || !taskId) return;
+      for (let i = 0; i < state.pathLists.length; i += 1) {
+        const pathList = state.pathLists[i];
+        if (!Array.isArray(pathList.taskIds)) continue;
+        pathList.taskIds = pathList.taskIds.filter((id) => String(id) !== String(taskId));
+      }
+      state.pathLists = dedupePathLists(state.pathLists);
+    }
+
+    function openPathList(pathListId) {
+      if (!getPathListById(pathListId)) return;
+      currentViewMode = 'pathList';
+      currentDateFilterKey = null;
+      isDateSectionOpen = false;
+      currentPathListId = pathListId;
+      currentParentId = ROOT_ID;
+      render();
+    }
+
+    function movePathList(fromIndex, toIndex) {
+      if (!Number.isFinite(fromIndex) || !Number.isFinite(toIndex) || !Array.isArray(state.pathLists)) return;
+      const normalizedFrom = Math.max(0, Math.min(state.pathLists.length - 1, fromIndex));
+      const normalizedTo = Math.max(0, Math.min(state.pathLists.length - 1, toIndex));
+      if (normalizedFrom === normalizedTo) return;
+      const moved = state.pathLists.splice(normalizedFrom, 1)[0];
+      state.pathLists.splice(normalizedTo, 0, moved);
+      for (let i = 0; i < state.pathLists.length; i += 1) {
+        if (state.pathLists[i]) {
+          state.pathLists[i].createdOrder = i;
+        }
+      }
+      saveState();
+      render();
+    }
+
+    function moveCustomTab(fromIndex, toIndex) {
+      if (!Number.isFinite(fromIndex) || !Number.isFinite(toIndex) || !Array.isArray(state.customTabs)) return;
+      const normalizedFrom = Math.max(0, Math.min(state.customTabs.length - 1, fromIndex));
+      const normalizedTo = Math.max(0, Math.min(state.customTabs.length - 1, toIndex));
+      if (normalizedFrom === normalizedTo) return;
+
+      const moved = state.customTabs.splice(normalizedFrom, 1)[0];
+      state.customTabs.splice(normalizedTo, 0, moved);
+
+      for (let i = 0; i < state.customTabs.length; i += 1) {
+        if (state.customTabs[i]) {
+          state.customTabs[i].createdOrder = i;
+        }
+      }
+      state.customTabs = dedupeCustomTabs(state.customTabs);
+
+      saveState();
+      render();
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return null;
+      try {
+        return JSON.parse(saved);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function ensureNodeStructure() {
+      if (!state || !state.nodes || !state.nodes[ROOT_ID]) {
+        state = {
+          nextOrder: 1,
+          nodes: {
+            [ROOT_ID]: {
+              id: ROOT_ID,
+              title: '루트',
+              parentId: null,
+              completed: false,
+              isToday: false,
+              isImportant: false,
+              priority: null,
+              createdOrder: 0,
+              children: []
+            }
+          }
+        };
+      }
+
+      if (!Number.isFinite(state.nextOrder)) {
+        state.nextOrder = 1;
+      }
+
+      if (!Array.isArray(state.customTabs)) state.customTabs = [];
+      state.customTabs = dedupeCustomTabs(state.customTabs);
+
+      if (!Array.isArray(state.pathLists)) state.pathLists = [];
+      state.pathLists = dedupePathLists(state.pathLists);
+
+      for (let i = 0; i < state.customTabs.length; i += 1) {
+        const tab = state.customTabs[i];
+        if (!state.nodes[tab.id]) {
+          state.nodes[tab.id] = {
+            id: tab.id,
+            title: tab.title,
+            parentId: ROOT_ID,
+            completed: false,
+            isToday: false,
+            isImportant: false,
+            memo: '',
+            priority: null,
+            createdOrder: tab.createdOrder,
+            createdAt: tab.createdAt || getNowIsoString(),
+            children: [],
+            isCustomFolder: true
+          };
+        } else {
+          state.nodes[tab.id].isCustomFolder = true;
+          state.nodes[tab.id].title = tab.title;
+          if (!Array.isArray(state.nodes[tab.id].children)) state.nodes[tab.id].children = [];
+          state.nodes[tab.id].parentId = ROOT_ID;
+          state.nodes[tab.id].completed = false;
+          state.nodes[tab.id].isToday = false;
+        }
+      }
+
+      const ids = Object.keys(state.nodes);
+      for (let i = 0; i < ids.length; i += 1) {
+        const node = state.nodes[ids[i]];
+        if (!node || typeof node !== 'object') {
+          delete state.nodes[ids[i]];
+          continue;
+        }
+
+        if (!node.id) node.id = ids[i];
+        node.id = String(node.id);
+
+        if (!Array.isArray(node.children)) node.children = [];
+        if (typeof node.completed !== 'boolean') node.completed = false;
+        if (typeof node.isToday !== 'boolean') node.isToday = false;
+        if (!Object.prototype.hasOwnProperty.call(node, 'isImportant')) node.isImportant = false;
+        if (!Object.prototype.hasOwnProperty.call(node, 'memo') || typeof node.memo !== 'string') node.memo = '';
+        if (!Object.prototype.hasOwnProperty.call(node, 'priority')) node.priority = null;
+        if (!Object.prototype.hasOwnProperty.call(node, 'isCustomFolder')) node.isCustomFolder = false;
+        if (!Object.prototype.hasOwnProperty.call(node, 'createdAt') || Number.isNaN(new Date(node.createdAt).getTime())) {
+          node.createdAt = getNowIsoString();
+        }
+        if (!Number.isFinite(node.createdOrder)) {
+          node.createdOrder = state.nextOrder;
+          state.nextOrder += 1;
+        }
+      }
+
+      if (!state.nodes[ROOT_ID]) {
+        state.nodes[ROOT_ID] = {
+          id: ROOT_ID,
+          title: '루트',
+          parentId: null,
+          completed: false,
+          isToday: false,
+          isImportant: false,
+          memo: '',
+          priority: null,
+          createdAt: getNowIsoString(),
+          createdOrder: 0,
+          children: []
+        };
+      } else {
+        state.nodes[ROOT_ID].parentId = null;
+        state.nodes[ROOT_ID].isToday = false;
+        state.nodes[ROOT_ID].isImportant = false;
+        state.nodes[ROOT_ID].priority = null;
+        state.nodes[ROOT_ID].completed = false;
+        if (!Object.prototype.hasOwnProperty.call(state.nodes[ROOT_ID], 'createdAt') || Number.isNaN(new Date(state.nodes[ROOT_ID].createdAt).getTime())) {
+          state.nodes[ROOT_ID].createdAt = getNowIsoString();
+        }
+        if (!Array.isArray(state.nodes[ROOT_ID].children)) {
+          state.nodes[ROOT_ID].children = [];
+        }
+      }
+
+      if (Array.isArray(state.pathLists)) {
+        state.pathLists.forEach((pathList) => {
+          if (!pathList || !pathList.id) return;
+          if (!Array.isArray(pathList.taskIds)) {
+            pathList.taskIds = [];
+          } else {
+            const dedup = [];
+            const seen = new Set();
+            for (let i = 0; i < pathList.taskIds.length; i += 1) {
+              const taskId = String(pathList.taskIds[i]);
+              if (!state.nodes[taskId]) continue;
+              if (seen.has(taskId)) continue;
+              seen.add(taskId);
+              dedup.push(taskId);
+            }
+            pathList.taskIds = dedup;
+          }
+
+          if (!Number.isFinite(pathList.createdOrder)) {
+            pathList.createdOrder = state.nextOrder;
+            state.nextOrder += 1;
+          }
+        });
+        state.pathLists = dedupePathLists(state.pathLists);
+      }
+
+      const validIds = new Set(Object.keys(state.nodes));
+      const referenced = new Set();
+
+      Object.values(state.nodes).forEach((node) => {
+        if (node.id === ROOT_ID) return;
+        if (typeof node.parentId !== 'string' || !validIds.has(node.parentId)) {
+          node.parentId = ROOT_ID;
+        }
+        node.children = node.children.filter((childId) => validIds.has(childId));
+      });
+
+      Object.values(state.nodes).forEach((node) => {
+        if (!Array.isArray(node.children)) node.children = [];
+        node.children.forEach((childId) => {
+          const child = state.nodes[childId];
+          if (child) {
+            child.parentId = node.id;
+            referenced.add(childId);
+          }
+        });
+      });
+
+      Object.values(state.nodes).forEach((node) => {
+        if (node.id === ROOT_ID) return;
+        if (!referenced.has(node.id) && node.parentId === ROOT_ID) {
+          // keep as top-level
+        }
+      });
+
+      const root = getTaskNode(ROOT_ID);
+      if (root) {
+        const cleaned = [];
+        for (let i = 0; i < root.children.length; i += 1) {
+          const childId = root.children[i];
+          if (!state.nodes[childId]) continue;
+          if (!cleaned.includes(childId)) cleaned.push(childId);
+        }
+        root.children = cleaned;
+
+        const rootCustomIds = new Set();
+        Object.values(state.nodes).forEach((node) => {
+          if (node.id === ROOT_ID) return;
+          if (node.isCustomFolder && node.parentId === ROOT_ID) {
+            rootCustomIds.add(node.id);
+          }
+        });
+
+        if (Array.isArray(state.customTabs)) {
+          const existing = new Map();
+          state.customTabs.forEach((tab) => {
+            if (tab && tab.id) existing.set(String(tab.id), tab);
+          });
+
+          const merged = [];
+          rootCustomIds.forEach((id) => {
+            if (existing.has(id)) {
+              const tab = existing.get(id);
+              merged.push({
+                id,
+                title: sanitizeCustomTabName(tab.title) || state.nodes[id].title || '폴더',
+                createdOrder: Number.isFinite(tab.createdOrder) ? tab.createdOrder : (state.nodes[id].createdOrder || 0)
+              });
+            } else {
+              merged.push({
+                id,
+                title: state.nodes[id].title || '폴더',
+                createdOrder: state.nodes[id].createdOrder || 0
+              });
+            }
+          });
+
+          root.children.forEach((childId) => {
+            const node = state.nodes[childId];
+            if (node && node.isCustomFolder && node.parentId === ROOT_ID && !rootCustomIds.has(childId)) {
+              const maybe = existing.get(childId);
+              if (maybe) {
+                merged.push({
+                  id: childId,
+                  title: sanitizeCustomTabName(maybe.title) || node.title || '폴더',
+                  createdOrder: Number.isFinite(maybe.createdOrder) ? maybe.createdOrder : (node.createdOrder || 0)
+                });
+              }
+            }
+          });
+
+          state.customTabs = dedupeCustomTabs(merged);
+        } else {
+          state.customTabs = [];
+        }
+      }
+
+      if (!Array.isArray(state.customTabs)) state.customTabs = [];
+      state.customTabs = dedupeCustomTabs(state.customTabs).filter((tab) => state.nodes[tab.id]);
+
+      state.schemaVersion = STATE_VERSION;
+      if (!loadChildrenIndexFromState()) {
+        normalizeAndIndexChildren();
+      }
+    }
+
+    function saveState() {
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+      }
+
+      saveTimer = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        saveTimer = null;
+      }, SAVE_DEBOUNCE_MS);
+    }
+
+    function flushSaveState() {
+      if (!saveTimer) return;
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    async function downloadStateFile() {
+      const payload = JSON.stringify(state, null, 2);
+      const isFileSaverAvailable = typeof window.showSaveFilePicker === 'function';
+
+      if (isFileSaverAvailable) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: DATA_FILE_NAME,
+            types: [
+              {
+                description: 'JSON',
+                accept: { 'application/json': ['.json'] }
+              }
+            ]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(payload);
+          await writable.close();
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+          // fallback
+        }
+      }
+
+      const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = DATA_FILE_NAME;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    }
+
+    function loadStateFromFileObject(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || !parsed.nodes) {
+          alert('유효한 작업 파일이 아닙니다.');
+          return;
+        }
+        state = parsed;
+        if (!state.nextOrder) state.nextOrder = 1;
+        ensureNodeStructure();
+        saveState();
+        if (!getTaskNode(currentParentId)) currentParentId = ROOT_ID;
+        render();
+      } catch (error) {
+        alert('작업 파일을 읽을 수 없습니다.');
+      }
+    }
+
+    async function pickAndLoadStateFromFile() {
+      if (typeof window.showOpenFilePicker === 'function') {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+          });
+          const file = await handle.getFile();
+          const raw = await file.text();
+          loadStateFromFileObject(raw);
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+          importFileInput.click();
+          return;
+        }
+      }
+      importFileInput.click();
+    }
+
+    function getTaskNode(id) {
+      return state.nodes[id] || null;
+    }
+
+    function getPriorityValue(task) {
+      return Number.isFinite(task && task.priority) ? task.priority : Infinity;
+    }
+
+    function enforceCompletedBoundary(ids) {
+      const active = [];
+      const completed = [];
+      for (let i = 0; i < ids.length; i += 1) {
+        const node = getTaskNode(ids[i]);
+        if (!node) continue;
+        if (node.completed) completed.push(ids[i]);
+        else active.push(ids[i]);
+      }
+      return active.concat(completed);
+    }
+
+    function getPathNodes(targetId) {
+      const nodes = [];
+      let current = getTaskNode(targetId) || getTaskNode(ROOT_ID);
+      while (current) {
+        nodes.push(current);
+        current = getTaskNode(current.parentId);
+      }
+      return nodes.reverse();
+    }
+
+    function getChildrenFromParent(parentId) {
+      const parent = getTaskNode(parentId);
+      if (!parent) return [];
+
+      if (!childrenCache.has(parent.id)) {
+        normalizeChildrenCacheForParent(parent.id);
+      }
+      const children = childrenCache.get(parent.id) || [];
+
+      if (parent.id !== ROOT_ID) return children.slice();
+
+      const visible = [];
+      for (let i = 0; i < children.length; i += 1) {
+        const child = getTaskNode(children[i]);
+        if (child && !child.isCustomFolder) visible.push(children[i]);
+      }
+      return visible;
+    }
+
+    function getTodayTaskIdsFrom(parentId) {
+      const result = [];
+      const seen = new Set();
+
+      function walk(nodeId) {
+        if (seen.has(nodeId)) return;
+        const node = getTaskNode(nodeId);
+        if (!node) return;
+
+        seen.add(nodeId);
+        if (node.isToday) result.push(nodeId);
+
+        const children = getChildrenFromParent(node.id);
+        for (let i = 0; i < children.length; i += 1) {
+          walk(children[i]);
+        }
+      }
+
+      const top = getChildrenFromParent(parentId);
+      for (let i = 0; i < top.length; i += 1) {
+        walk(top[i]);
+      }
+
+      return result;
+    }
+
+    function getImportantTaskIdsFrom(parentId) {
+      const result = [];
+      const seen = new Set();
+
+      function walk(nodeId) {
+        if (seen.has(nodeId)) return;
+        const node = getTaskNode(nodeId);
+        if (!node) return;
+
+        seen.add(nodeId);
+        if (node.isImportant) result.push(nodeId);
+
+        const children = getChildrenFromParent(node.id);
+        for (let i = 0; i < children.length; i += 1) {
+          walk(children[i]);
+        }
+      }
+
+      const top = getChildrenFromParent(parentId);
+      for (let i = 0; i < top.length; i += 1) {
+        walk(top[i]);
+      }
+
+      return result;
+    }
+
+    function getVisibleTaskRows() {
+      const parent = getTaskNode(currentParentId);
+      if (!parent) return [];
+
+      const rows = [];
+
+      if (currentViewMode === 'today' && parent.id !== ROOT_ID) {
+        const children = getChildrenFromParent(parent.id);
+        for (let i = 0; i < children.length; i += 1) {
+          rows.push({ id: children[i], depth: 0, parentId: parent.id });
+        }
+        return rows;
+      }
+
+      if (currentViewMode === 'today') {
+        function collectOnlyToday(nodeId, isSubChild = false) {
+          const node = getTaskNode(nodeId);
+          if (!node) return;
+
+          if (node.isToday) {
+            rows.push({ id: node.id, depth: isSubChild ? 0 : 0, parentId: node.parentId });
+          }
+
+          const children = getChildrenFromParent(node.id);
+          for (let i = 0; i < children.length; i += 1) {
+            collectOnlyToday(children[i], true);
+          }
+        }
+
+        const top = getChildrenFromParent(parent.id);
+        for (let i = 0; i < top.length; i += 1) {
+          collectOnlyToday(top[i], false);
+        }
+        return rows;
+      }
+
+      if (currentViewMode === 'date' && currentDateFilterKey) {
+        const list = Object.values(state.nodes).filter((node) => node && node.id !== ROOT_ID);
+        list.sort((a, b) => {
+          const aDate = Date.parse(a.createdAt);
+          const bDate = Date.parse(b.createdAt);
+          if (Number.isNaN(aDate)) return 1;
+          if (Number.isNaN(bDate)) return -1;
+          return aDate - bDate;
+        });
+
+        for (let i = 0; i < list.length; i += 1) {
+          if (formatDateKey(list[i].createdAt) === currentDateFilterKey) {
+            rows.push({ id: list[i].id, depth: 0, parentId: list[i].parentId });
+          }
+        }
+        return rows;
+      }
+
+      if (currentViewMode === 'important' && parent.id !== ROOT_ID) {
+        const children = getChildrenFromParent(parent.id);
+        for (let i = 0; i < children.length; i += 1) {
+          rows.push({ id: children[i], depth: 0, parentId: parent.id });
+        }
+        return rows;
+      }
+
+      if (currentViewMode === 'important') {
+        function collectOnlyImportant(nodeId) {
+          const node = getTaskNode(nodeId);
+          if (!node) return;
+
+          if (node.isImportant) {
+            rows.push({ id: node.id, depth: 0, parentId: node.parentId });
+          }
+
+          const children = getChildrenFromParent(node.id);
+          for (let i = 0; i < children.length; i += 1) {
+            collectOnlyImportant(children[i]);
+          }
+        }
+
+        const top = getChildrenFromParent(parent.id);
+        for (let i = 0; i < top.length; i += 1) {
+          collectOnlyImportant(top[i]);
+        }
+        return rows;
+      }
+
+      if (currentViewMode === 'pathList' && currentPathListId) {
+        const pathList = getPathListById(currentPathListId);
+        if (!pathList || !Array.isArray(pathList.taskIds)) return rows;
+        for (let i = 0; i < pathList.taskIds.length; i += 1) {
+          const id = String(pathList.taskIds[i]);
+          if (getTaskNode(id)) {
+            rows.push({ id, depth: 0, parentId: ROOT_ID });
+          }
+        }
+        return rows;
+      }
+
+      const children = getChildrenFromParent(parent.id);
+      for (let i = 0; i < children.length; i += 1) {
+        rows.push({ id: children[i], depth: 0, parentId: parent.id });
+      }
+      return rows;
+    }
+
+    function isDescendant(ancestorId, nodeId) {
+      let current = getTaskNode(nodeId);
+      while (current) {
+        if (current.id === ancestorId) return true;
+        current = getTaskNode(current.parentId);
+      }
+      return false;
+    }
+
+    function setCurrentParent(id) {
+      const nextParent = getTaskNode(id) ? id : ROOT_ID;
+      if (currentViewMode === 'date') {
+        currentViewMode = 'all';
+        currentDateFilterKey = null;
+        isDateSectionOpen = false;
+      }
+      if (currentViewMode === 'pathList') {
+        currentViewMode = 'all';
+        currentPathListId = null;
+        isDateSectionOpen = false;
+      }
+      currentParentId = nextParent;
+      memoTargetTaskId = nextParent === ROOT_ID ? null : nextParent;
+      render();
+      taskInput.focus();
+    }
+
+    function getTaskTreeText(rootId = currentParentId) {
+      const root = getTaskNode(rootId);
+      const startNode = root ? root : getTaskNode(ROOT_ID);
+      const lines = [];
+      if (!startNode) return '';
+
+      const startTitle = startNode.id === ROOT_ID ? '루트' : startNode.title;
+      const children = getChildrenFromParent(startNode.id);
+
+      if (startNode.id !== ROOT_ID) {
+        lines.push(startTitle || '이름 없음');
+      }
+
+      const walk = (nodeId, prefix) => {
+        const kids = getChildrenFromParent(nodeId);
+        for (let i = 0; i < kids.length; i += 1) {
+          const childId = kids[i];
+          const child = getTaskNode(childId);
+          if (!child) continue;
+          const isLast = i === kids.length - 1;
+          const connector = isLast ? '└── ' : '├── ';
+          const nextPrefix = prefix + (isLast ? '    ' : '│   ');
+
+          lines.push(`${prefix}${connector}${child.title || '이름 없음'}`);
+          walk(child.id, nextPrefix);
+        }
+      };
+
+      walk(startNode.id, '');
+
+      if (!lines.length) {
+        return `${startTitle}의 하위 작업이 없습니다.`;
+      }
+      return lines.join('\n');
+    }
+
+    function exportTaskTreeText() {
+      const content = getTaskTreeText(currentParentId);
+      if (!content) return;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = TASK_TREE_EXPORT_NAME;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    }
+
+    function placeActiveTaskByPriority(parentId, taskId) {
+      const parent = getTaskNode(parentId);
+      const task = getTaskNode(taskId);
+      if (!parent || !task) return;
+
+      const base = parent.children.filter((id) => id !== taskId);
+      if (task.completed) {
+        parent.children = enforceCompletedBoundary(base.concat([taskId]));
+        return;
+      }
+
+      const active = [];
+      const completed = [];
+      const targetPriority = getPriorityValue(task);
+
+      for (let i = 0; i < base.length; i += 1) {
+        const node = getTaskNode(base[i]);
+        if (!node) continue;
+        if (node.completed) {
+          completed.push(base[i]);
+        } else {
+          active.push(base[i]);
+        }
+      }
+
+      let insert = active.length;
+      let lastSame = -1;
+      for (let i = 0; i < active.length; i += 1) {
+        const p = getPriorityValue(getTaskNode(active[i]));
+        if (p === targetPriority) {
+          lastSame = i;
+        }
+        if (p > targetPriority) {
+          insert = i;
+          break;
+        }
+      }
+
+      if (lastSame !== -1) {
+        insert = Math.max(insert, lastSame + 1);
+      }
+
+      if (insert < 0) insert = 0;
+      if (insert > active.length) insert = active.length;
+      active.splice(insert, 0, taskId);
+      parent.children = active.concat(completed);
+      rebuildChildrenCache(parent.id);
+    }
+
+    function addTask(title, priority, isToday) {
+      const node = {
+        id: uid('task'),
+        title,
+        parentId: currentParentId,
+        completed: false,
+        isToday: Boolean(isToday),
+        isImportant: false,
+        memo: '',
+        priority,
+        createdAt: getNowIsoString(),
+        createdOrder: state.nextOrder,
+        children: []
+      };
+      state.nextOrder += 1;
+      state.nodes[node.id] = node;
+
+      const parent = getTaskNode(currentParentId);
+      parent.children.push(node.id);
+      placeActiveTaskByPriority(parent.id, node.id);
+      saveState();
+      render();
+    }
+
+    function toggleComplete(id) {
+      const node = getTaskNode(id);
+      if (!node) return;
+      const parent = getTaskNode(node.parentId);
+      if (!parent) return;
+
+      node.completed = !node.completed;
+      const childIndex = parent.children.indexOf(id);
+      if (childIndex === -1) return;
+
+      if (node.completed) {
+        const list = parent.children.filter((tid) => tid !== id);
+        list.push(id);
+        parent.children = enforceCompletedBoundary(list);
+        rebuildChildrenCache(parent.id);
+      } else {
+        placeActiveTaskByPriority(parent.id, id);
+      }
+
+      saveState();
+      render();
+    }
+
+    function updatePriority(id, raw) {
+      const node = getTaskNode(id);
+      if (!node) return;
+      node.priority = parsePriority(raw);
+
+      if (!node.completed) {
+        placeActiveTaskByPriority(node.parentId, id);
+      }
+      saveState();
+      render();
+    }
+
+    function updateMemo(id) {
+      const node = getTaskNode(id);
+      if (!node) return;
+      memoTargetTaskId = node.id;
+      renderMemoPanel();
+      memoPanelInput.focus();
+    }
+
+      function cloneTaskSubtree(sourceId, targetParentId) {
+        const source = getTaskNode(sourceId);
+        const targetParent = getTaskNode(targetParentId);
+        if (!source || !targetParent) return null;
+
+        const cloneNodeRecursively = (sourceNode) => {
+          const copied = {
+            id: sourceNode.isCustomFolder ? uid('folder') : uid('task'),
+            title: sourceNode.title,
+            parentId: targetParentId,
+            completed: sourceNode.completed,
+            isToday: sourceNode.isToday,
+            isImportant: sourceNode.isImportant,
+            memo: sourceNode.memo || '',
+            priority: sourceNode.priority,
+            createdAt: getNowIsoString(),
+            createdOrder: state.nextOrder,
+            children: [],
+            isCustomFolder: Boolean(sourceNode.isCustomFolder)
+          };
+
+          state.nextOrder += 1;
+          state.nodes[copied.id] = copied;
+
+          const sourceChildren = getChildrenFromParent(sourceNode.id);
+          for (let i = 0; i < sourceChildren.length; i += 1) {
+            const sourceChild = getTaskNode(sourceChildren[i]);
+            if (!sourceChild) continue;
+
+            const childCopied = cloneNodeRecursively(sourceChild);
+            if (!childCopied) continue;
+
+            childCopied.parentId = copied.id;
+            copied.children.push(childCopied.id);
+          }
+
+          return copied;
+        };
+
+        const cloned = cloneNodeRecursively(source);
+        if (!cloned) return null;
+
+        const rootId = cloned.id;
+        targetParent.children.push(rootId);
+        placeActiveTaskByPriority(targetParent.id, rootId);
+
+        if (cloned.isCustomFolder && targetParent.id === ROOT_ID) {
+          state.customTabs.push({
+            id: cloned.id,
+            title: cloned.title,
+            createdOrder: cloned.createdOrder
+          });
+          state.customTabs = dedupeCustomTabs(state.customTabs);
+        }
+
+        rebuildChildrenCache(targetParent.id);
+        saveState();
+        render();
+        return rootId;
+      }
+
+    function updateImportantFlag(id, isImportant) {
+      const node = getTaskNode(id);
+      if (!node) return;
+      node.isImportant = Boolean(isImportant);
+      saveState();
+      render();
+    }
+
+    function updateTodayFlag(id, isToday) {
+      const node = getTaskNode(id);
+      if (!node) return;
+      node.isToday = Boolean(isToday);
+      saveState();
+      render();
+    }
+
+    function clearTodayInCurrentView() {
+      if (currentViewMode !== 'today') return;
+
+      const todayIds = getTodayTaskIdsFrom(currentParentId);
+      if (!todayIds.length) {
+        window.alert('현재 오늘 할일 목록이 비어 있습니다.');
+        return;
+      }
+
+      const yes = window.confirm(`오늘 할일 목록의 ${todayIds.length}개 항목을 전부 해제할까요?`);
+      if (!yes) return;
+
+      for (let i = 0; i < todayIds.length; i += 1) {
+        const node = getTaskNode(todayIds[i]);
+        if (node) {
+          node.isToday = false;
+        }
+      }
+
+      saveState();
+      render();
+    }
+
+    function renameTask(id, nextTitle) {
+      const node = getTaskNode(id);
+      if (!node) return;
+
+      const title = sanitizeTaskTitle(nextTitle);
+      if (!title) return;
+
+      if (title === node.title) return;
+
+      node.title = title;
+      saveState();
+      render();
+    }
+
+    function moveTaskInSameParent(movedId, targetId = null, position = 'before', parentId = currentParentId) {
+      const parent = getTaskNode(parentId);
+      if (!parent) return;
+
+      const moved = getTaskNode(movedId);
+      if (!moved) return;
+
+      if (moved.parentId !== parent.id && moved.parentId) {
+        const oldParent = getTaskNode(moved.parentId);
+        if (oldParent) {
+          oldParent.children = oldParent.children.filter((id) => id !== movedId);
+          rebuildChildrenCache(oldParent.id);
+        }
+      }
+      moved.parentId = parent.id;
+
+      const list = parent.children.filter((id) => id !== movedId);
+
+      if (!targetId) {
+        list.push(movedId);
+        parent.children = enforceCompletedBoundary(list);
+        rebuildChildrenCache(parent.id);
+        saveState();
+        render();
+        return;
+      }
+
+      const targetIndex = list.indexOf(targetId);
+      if (targetIndex === -1) {
+        list.push(movedId);
+        parent.children = enforceCompletedBoundary(list);
+        rebuildChildrenCache(parent.id);
+        saveState();
+        render();
+        return;
+      }
+
+      const insert = targetIndex + (position === 'after' ? 1 : 0);
+      const bounded = insert;
+      const insertIndex = Math.max(0, Math.min(bounded, list.length));
+
+      if (moved.completed) {
+        list.push(movedId);
+        parent.children = enforceCompletedBoundary(list);
+      } else {
+        list.splice(insertIndex, 0, movedId);
+        parent.children = enforceCompletedBoundary(list);
+      }
+      rebuildChildrenCache(parent.id);
+
+      saveState();
+      render();
+    }
+
+    function addToParentByPriority(taskId, targetParentId) {
+      const node = getTaskNode(taskId);
+      const target = getTaskNode(targetParentId);
+      if (!node || !target) return;
+
+      if (!target.children.includes(taskId)) {
+        target.children.push(taskId);
+      }
+
+      if (node.completed) {
+        target.children = enforceCompletedBoundary(target.children);
+      } else {
+        placeActiveTaskByPriority(targetParentId, taskId);
+      }
+
+      rebuildChildrenCache(target.id);
+    }
+
+    function moveTaskIntoTask(movedId, targetTaskId) {
+      const moved = getTaskNode(movedId);
+      const target = getTaskNode(targetTaskId);
+      if (!moved || !target) return;
+      if (target.id === moved.id) return;
+      if (isDescendant(moved.id, target.id)) return;
+
+      const oldParent = getTaskNode(moved.parentId);
+      if (oldParent) {
+        oldParent.children = oldParent.children.filter((id) => id !== moved.id);
+        rebuildChildrenCache(oldParent.id);
+      }
+
+      moved.parentId = target.id;
+      if (!target.children.includes(moved.id)) {
+        target.children.push(moved.id);
+      }
+      addToParentByPriority(moved.id, target.id);
+
+      if (!oldParent) {
+        currentParentId = ROOT_ID;
+      }
+      if (currentParentId === ROOT_ID && oldParent && oldParent.id !== ROOT_ID) {
+        // no-op, keep current root
+      }
+
+      saveState();
+      render();
+    }
+
+    function moveTaskToParent(id) {
+      const node = getTaskNode(id);
+      if (!node) return;
+
+      const parent = getTaskNode(node.parentId);
+      if (!parent || parent.id === ROOT_ID) return;
+
+      const grandParent = getTaskNode(parent.parentId);
+      if (!grandParent) return;
+
+      parent.children = parent.children.filter((tid) => tid !== id);
+      rebuildChildrenCache(parent.id);
+      node.parentId = grandParent.id;
+
+      if (!grandParent.children.includes(id)) {
+        const insertIndex = grandParent.children.indexOf(parent.id) + 1;
+        grandParent.children.splice(
+          Math.max(0, Math.min(insertIndex, grandParent.children.length)),
+          0,
+          id
+        );
+      }
+
+      if (!node.completed) {
+        placeActiveTaskByPriority(grandParent.id, id);
+      } else {
+        grandParent.children = enforceCompletedBoundary(grandParent.children);
+      }
+      rebuildChildrenCache(grandParent.id);
+
+      saveState();
+      render();
+    }
+
+    function deleteTask(id) {
+      const node = getTaskNode(id);
+      if (!node || id === ROOT_ID) return;
+
+      const yes = window.confirm(`"${node.title}"을(를) 삭제할까요? 하위 작업도 함께 삭제됩니다.`);
+      if (!yes) return;
+
+      const parent = getTaskNode(node.parentId);
+      if (parent) {
+        parent.children = parent.children.filter((tid) => tid !== id);
+        rebuildChildrenCache(parent.id);
+      }
+
+      const removedIds = new Set();
+      const stack = [id];
+      while (stack.length) {
+        const currentId = stack.pop();
+        const currentNode = getTaskNode(currentId);
+        if (!currentNode) continue;
+        removedIds.add(currentId);
+
+        if (Array.isArray(currentNode.children) && currentNode.children.length) {
+          stack.push(...currentNode.children);
+        }
+
+        childrenCache.delete(currentId);
+        delete state.nodes[currentId];
+      }
+
+      if (removedIds.size) {
+        removedIds.forEach((removedId) => {
+          removeCustomTabFromRegistry(removedId);
+          removeTaskFromPathLists(removedId);
+        });
+      }
+
+      if (currentParentId === id) {
+        currentParentId = ROOT_ID;
+      }
+      if (memoTargetTaskId === id || (memoTargetTaskId && isDescendant(id, memoTargetTaskId))) {
+        memoTargetTaskId = null;
+      }
+
+      saveState();
+      render();
+    }
+
+    function renderTabs() {
+      const parent = getTaskNode(currentParentId);
+      const childIds = (parent && parent.children)
+        ? (parent.id === ROOT_ID
+          ? parent.children.filter((id) => !state.nodes[id]?.isCustomFolder)
+          : parent.children)
+        : [];
+      const todayCount = getTodayTaskIdsFrom(currentParentId).length;
+      const importantCount = getImportantTaskIdsFrom(currentParentId).length;
+
+      tabAll.textContent = `전체 (${childIds.length})`;
+      tabToday.textContent = `오늘 할일 (${todayCount})`;
+      tabImportant.textContent = `⭐ 중요 (${importantCount})`;
+      tabAll.classList.toggle('active', currentViewMode === 'all');
+      tabToday.classList.toggle('active', currentViewMode === 'today');
+      tabImportant.classList.toggle('active', currentViewMode === 'important');
+      clearTodayBtn.style.display = currentViewMode === 'today' ? '' : 'none';
+    }
+
+    function openCustomTab(tabId) {
+      if (!getTaskNode(tabId)) return;
+      currentViewMode = 'all';
+      currentDateFilterKey = null;
+      isDateSectionOpen = false;
+      currentPathListId = null;
+      setCurrentParent(tabId);
+    }
+
+    function renderCustomTabs() {
+      if (!customTabList) return;
+      customTabList.innerHTML = '';
+      const list = Array.isArray(state.customTabs)
+        ? [...state.customTabs].filter((tab) => {
+          const node = getTaskNode(tab.id);
+          return node && node.isCustomFolder && node.parentId === ROOT_ID;
+        })
+        : [];
+
+      list.sort((a, b) => (a.createdOrder - b.createdOrder));
+      for (let i = 0; i < list.length; i += 1) {
+        const tab = list[i];
+        const item = document.createElement('div');
+        item.className = 'custom-tab-item';
+        item.draggable = currentViewMode === 'all';
+        item.dataset.id = tab.id;
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'custom-tab-open';
+        openBtn.textContent = tab.title || '폴더';
+        openBtn.title = tab.title || '폴더';
+        openBtn.classList.toggle('active', currentViewMode === 'all' && currentParentId === tab.id);
+
+        openBtn.addEventListener('click', () => {
+          openCustomTab(tab.id);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'custom-tab-delete';
+        delBtn.textContent = '×';
+        delBtn.title = `${tab.title || '폴더'} 삭제`;
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteTask(tab.id);
+        });
+
+        item.addEventListener('dragstart', (e) => {
+          if (currentViewMode !== 'all') return;
+          draggingTaskId = null;
+          draggingCustomTabId = tab.id;
+          draggingSavedListId = null;
+          item.classList.add('dragging-target');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.dropEffect = 'move';
+          e.dataTransfer.setData('text/plain', tab.id);
+        });
+
+        item.addEventListener('dragend', () => {
+          draggingCustomTabId = null;
+          draggingTaskId = null;
+          item.classList.remove('dragging-target');
+          document.querySelectorAll('.custom-tab-item.dragging-target').forEach((i) => {
+            i.classList.remove('dragging-target');
+          });
+          document.querySelectorAll('.task-item').forEach((taskItem) => {
+            taskItem.classList.remove('drag-before', 'drag-into');
+            delete taskItem.dataset.dropSide;
+          });
+        });
+
+        item.addEventListener('dragover', (e) => {
+          e.stopPropagation();
+          if (currentViewMode !== 'all') return;
+
+          if (draggingTaskId) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (String(draggingTaskId) === String(tab.id)) return;
+            item.classList.add('dragging-target');
+            return;
+          }
+
+          if (!draggingCustomTabId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (String(draggingCustomTabId) === String(tab.id)) return;
+          item.classList.add('dragging-target');
+        });
+
+        item.addEventListener('dragleave', () => {
+          item.classList.remove('dragging-target');
+        });
+
+        item.addEventListener('drop', (e) => {
+          e.stopPropagation();
+          if (currentViewMode !== 'all') return;
+          e.preventDefault();
+
+          if (draggingCustomTabId) {
+            if (String(draggingCustomTabId) !== String(tab.id)) {
+              const sourceIndex = state.customTabs.findIndex((customTab) => String(customTab.id) === String(draggingCustomTabId));
+              const targetIndex = state.customTabs.findIndex((customTab) => String(customTab.id) === String(tab.id));
+              if (sourceIndex !== -1 && targetIndex !== -1) {
+                moveCustomTab(sourceIndex, targetIndex);
+              }
+            }
+
+            draggingCustomTabId = null;
+            item.classList.remove('dragging-target');
+            return;
+          }
+
+          if (!draggingTaskId) return;
+          moveTaskIntoTask(draggingTaskId, tab.id);
+          draggingTaskId = null;
+          item.classList.remove('dragging-target');
+        });
+
+        item.appendChild(openBtn);
+        item.appendChild(delBtn);
+        customTabList.appendChild(item);
+      }
+    }
+
+    function renderPathLists() {
+      if (!pathListContainer) return;
+      pathListContainer.innerHTML = '';
+
+      const list = Array.isArray(state.pathLists) ? [...state.pathLists].sort((a, b) => (a.createdOrder - b.createdOrder)) : [];
+      for (let i = 0; i < list.length; i += 1) {
+        const pathList = list[i];
+        const item = document.createElement('div');
+        item.className = 'custom-tab-item';
+        item.draggable = currentViewMode === 'all';
+        item.dataset.id = pathList.id;
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'custom-tab-open';
+        openBtn.textContent = pathList.title || '목록';
+        openBtn.title = pathList.title || '목록';
+        openBtn.classList.toggle('active', currentViewMode === 'pathList' && currentPathListId === pathList.id);
+        openBtn.addEventListener('click', () => {
+          openPathList(pathList.id);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'custom-tab-delete';
+        delBtn.textContent = '×';
+        delBtn.title = `${pathList.title || '목록'} 삭제`;
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!window.confirm(`"${pathList.title || '목록'}"을(를) 삭제할까요?`)) return;
+          state.pathLists = state.pathLists.filter((listItem) => String(listItem.id) !== String(pathList.id));
+          if (String(currentPathListId) === String(pathList.id)) {
+            currentPathListId = null;
+            currentViewMode = 'all';
+            currentParentId = ROOT_ID;
+          }
+          saveState();
+          render();
+        });
+
+        item.addEventListener('dragstart', (e) => {
+          if (currentViewMode !== 'all') return;
+          draggingTaskId = null;
+          draggingSavedListId = pathList.id;
+          item.classList.add('dragging-target');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.dropEffect = 'move';
+          e.dataTransfer.setData('text/plain', pathList.id);
+        });
+
+        item.addEventListener('dragend', () => {
+          draggingSavedListId = null;
+          item.classList.remove('dragging-target');
+          document.querySelectorAll('.custom-tab-item.dragging-target').forEach((targetItem) => {
+            targetItem.classList.remove('dragging-target');
+          });
+          document.querySelectorAll('.task-item').forEach((taskItem) => {
+            taskItem.classList.remove('drag-before', 'drag-into');
+            delete taskItem.dataset.dropSide;
+          });
+        });
+
+        item.addEventListener('dragover', (e) => {
+          e.stopPropagation();
+          if (!draggingSavedListId && !draggingTaskId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (draggingSavedListId) {
+            if (currentViewMode !== 'all') return;
+            if (String(draggingSavedListId) === String(pathList.id)) return;
+            item.classList.add('dragging-target');
+            return;
+          }
+
+          const draggedNode = getTaskNode(draggingTaskId);
+          if (!draggedNode || draggedNode.isCustomFolder) return;
+          if (currentViewMode !== 'all' || String(draggingTaskId) === String(pathList.id)) return;
+          item.classList.add('dragging-target');
+        });
+
+        item.addEventListener('dragleave', () => {
+          item.classList.remove('dragging-target');
+        });
+
+        item.addEventListener('drop', (e) => {
+          e.stopPropagation();
+
+          if (draggingSavedListId) {
+            e.preventDefault();
+            if (currentViewMode !== 'all') {
+              draggingSavedListId = null;
+              return;
+            }
+            if (String(draggingSavedListId) === String(pathList.id)) {
+              draggingSavedListId = null;
+              item.classList.remove('dragging-target');
+              return;
+            }
+            const sourceIndex = state.pathLists.findIndex((listItem) => String(listItem.id) === String(draggingSavedListId));
+            const targetIndex = state.pathLists.findIndex((listItem) => String(listItem.id) === String(pathList.id));
+            if (sourceIndex !== -1 && targetIndex !== -1) {
+              movePathList(sourceIndex, targetIndex);
+            }
+            draggingSavedListId = null;
+            item.classList.remove('dragging-target');
+            return;
+          }
+
+          if (currentViewMode !== 'all' || !draggingTaskId) return;
+          e.preventDefault();
+          const node = getTaskNode(draggingTaskId);
+          if (!node || node.isCustomFolder) {
+            draggingTaskId = null;
+            item.classList.remove('dragging-target');
+            return;
+          }
+          addTaskToPathList(draggingTaskId, pathList.id);
+          draggingTaskId = null;
+          item.classList.remove('dragging-target');
+        });
+
+        item.appendChild(openBtn);
+        item.appendChild(delBtn);
+        pathListContainer.appendChild(item);
+      }
+    }
+
+    function openDateFilter(dateKey) {
+      if (!dateKey) return;
+      isDateSectionOpen = true;
+      currentViewMode = 'date';
+      currentDateFilterKey = dateKey;
+      currentPathListId = null;
+      currentParentId = ROOT_ID;
+      memoTargetTaskId = null;
+      render();
+    }
+
+    function updateDateSectionUI() {
+      if (createdDateSection) {
+        createdDateSection.classList.toggle('open', isDateSectionOpen);
+      }
+      if (createdDateToggleBtn) {
+        createdDateToggleBtn.setAttribute('aria-expanded', isDateSectionOpen ? 'true' : 'false');
+        const dateSuffix = currentDateFilterKey ? ` (${currentDateFilterKey})` : '';
+        createdDateToggleBtn.textContent = isDateSectionOpen
+          ? `날짜별 보기${dateSuffix}`
+          : '날짜별 보기';
+      }
+    }
+
+    function updateFolderSectionUI() {
+      if (folderViewSection) {
+        folderViewSection.classList.toggle('open', isFolderViewOpen);
+      }
+      if (folderViewToggleBtn) {
+        folderViewToggleBtn.setAttribute('aria-expanded', isFolderViewOpen ? 'true' : 'false');
+        folderViewToggleBtn.textContent = isFolderViewOpen ? '폴더별 보기 접기' : '폴더별 보기';
+      }
+    }
+
+    function updatePathSectionUI() {
+      if (pathViewSection) {
+        pathViewSection.classList.toggle('open', isListViewOpen);
+      }
+      if (pathViewToggleBtn) {
+        pathViewToggleBtn.setAttribute('aria-expanded', isListViewOpen ? 'true' : 'false');
+        pathViewToggleBtn.textContent = isListViewOpen ? '목록별 보기 접기' : '목록별 보기';
+      }
+    }
+
+    function renderCreatedDateList() {
+      if (!createdDateList) return;
+      createdDateList.innerHTML = '';
+
+      const dateBuckets = {};
+      Object.values(state.nodes).forEach((node) => {
+        if (!node || node.id === ROOT_ID) return;
+        const dateKey = formatDateKey(node.createdAt);
+        if (!dateKey) return;
+        if (!dateBuckets[dateKey]) {
+          dateBuckets[dateKey] = { key: dateKey, count: 0, createdAt: node.createdAt };
+        }
+        dateBuckets[dateKey].count += 1;
+        if (new Date(node.createdAt) > new Date(dateBuckets[dateKey].createdAt)) {
+          dateBuckets[dateKey].createdAt = node.createdAt;
+        }
+      });
+
+      const list = Object.values(dateBuckets).sort((a, b) => {
+        const dateA = new Date(b.key);
+        const dateB = new Date(a.key);
+        if (Number.isNaN(dateA.getTime()) || Number.isNaN(dateB.getTime())) return 0;
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'custom-tab-item';
+        const emptyText = document.createElement('button');
+        emptyText.type = 'button';
+        emptyText.className = 'custom-tab-open';
+        emptyText.style.flex = '1';
+        emptyText.textContent = '작성된 날짜가 없습니다';
+        emptyText.disabled = true;
+        empty.appendChild(emptyText);
+        createdDateList.appendChild(empty);
+        return;
+      }
+
+      for (let i = 0; i < list.length; i += 1) {
+        const item = list[i];
+        const row = document.createElement('div');
+        row.className = 'custom-tab-item';
+        row.draggable = false;
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'custom-tab-open';
+        openBtn.textContent = `${formatDateLabel(item.createdAt)} (${item.count})`;
+        openBtn.title = `${item.key} (${item.count}개)`;
+        openBtn.classList.toggle('active', currentViewMode === 'date' && currentDateFilterKey === item.key);
+        openBtn.addEventListener('click', () => {
+          openDateFilter(item.key);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'custom-tab-delete';
+        delBtn.textContent = '×';
+        delBtn.title = '지우기';
+        delBtn.style.display = 'none';
+
+        row.appendChild(openBtn);
+        row.appendChild(delBtn);
+        createdDateList.appendChild(row);
+      }
+    }
+
+    function renderBreadcrumb() {
+      if (currentViewMode === 'date') {
+        breadcrumb.innerHTML = '';
+        const button = document.createElement('button');
+        button.className = 'crumb current';
+        button.type = 'button';
+        button.textContent = currentDateFilterKey ? `작성일: ${currentDateFilterKey}` : '작성일';
+        breadcrumb.appendChild(button);
+        const dateLabel = currentDateFilterKey || '';
+        addContext.textContent = `작성일 기준: ${dateLabel || '전체'}`;
+        const modeName = currentDateFilterKey ? `작성일 (${currentDateFilterKey})` : '작성일';
+        modeHint.textContent = `현재 모드: ${modeName}`;
+        return;
+      }
+
+      if (currentViewMode === 'pathList') {
+        const pathList = getPathListById(currentPathListId);
+        breadcrumb.innerHTML = '';
+        const button = document.createElement('button');
+        button.className = 'crumb current';
+        button.type = 'button';
+        button.textContent = pathList ? pathList.title : '목록 없음';
+        breadcrumb.appendChild(button);
+        addContext.textContent = pathList ? `현재 목록: ${pathList.title}` : '현재 목록을 찾을 수 없습니다.';
+        const modeName = pathList ? `저장 목록 (${pathList.title})` : '저장 목록';
+        modeHint.textContent = `현재 모드: ${modeName}`;
+        return;
+      }
+
+      const pathNodes = getPathNodes(currentParentId);
+      breadcrumb.innerHTML = '';
+
+      pathNodes.forEach((node, idx) => {
+        const button = document.createElement('button');
+        button.className = 'crumb';
+        button.type = 'button';
+        button.textContent = node.title;
+        if (idx === pathNodes.length - 1) {
+          button.classList.add('current');
+        }
+        button.addEventListener('click', () => {
+          setCurrentParent(node.id);
+        });
+
+        breadcrumb.appendChild(button);
+
+        if (idx < pathNodes.length - 1) {
+          const sep = document.createElement('span');
+          sep.className = 'sep';
+          sep.textContent = '>';
+          breadcrumb.appendChild(sep);
+        }
+      });
+
+      const label = pathNodes.map((n) => n.title).join(' > ');
+      addContext.textContent = `현재 기준: ${label}`;
+      const modeName = currentViewMode === 'all'
+        ? '전체'
+        : currentViewMode === 'today'
+          ? '오늘 할일'
+          : currentViewMode === 'important'
+            ? '중요'
+            : currentViewMode === 'date'
+              ? `작성일 (${currentDateFilterKey || '전체'})`
+              : '전체';
+      modeHint.textContent = `현재 모드: ${modeName}`;
+    }
+
+    function createTaskItem(task, id, rowParentId) {
+      const li = document.createElement('li');
+      li.className = `task-item${task.completed ? ' done' : ''}`;
+      li.draggable = currentViewMode === 'all';
+      li.dataset.id = id;
+      li.dataset.parentId = rowParentId || currentParentId;
+
+      const left = document.createElement('div');
+      left.className = 'task-main';
+
+      const handle = document.createElement('span');
+      handle.className = 'handle';
+      handle.textContent = '≡';
+
+      const titleBtn = document.createElement('button');
+      titleBtn.className = 'task-title';
+      titleBtn.type = 'button';
+      titleBtn.textContent = task.title;
+      titleBtn.title = task.title;
+      titleBtn.addEventListener('click', () => {
+        setCurrentParent(task.id);
+        setMemoTarget(task.id, true);
+      });
+
+      const meta = document.createElement('span');
+      meta.className = 'task-meta';
+      const priorityLabel = task.priority === null ? '우선순위: 없음' : `우선순위: ${task.priority}`;
+      const memoHint = task.memo ? ' · 메모 있음' : '';
+      const createdAtLabel = formatCreatedAt(task.createdAt);
+      const createdText = createdAtLabel ? ` · 작성 ${createdAtLabel}` : '';
+      meta.textContent = `${task.children.length}개 하위 · ${priorityLabel}${memoHint}${createdText}`;
+
+      left.appendChild(handle);
+      left.appendChild(titleBtn);
+      left.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'task-actions';
+
+      const moveToAbove = document.createElement('button');
+      moveToAbove.type = 'button';
+      moveToAbove.className = 'btn-move';
+      moveToAbove.textContent = '위쪽 디렉토리';
+      moveToAbove.title = '현재 작업을 한 단계 위(부모)로 이동';
+      moveToAbove.disabled = currentParentId === ROOT_ID;
+      moveToAbove.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moveTaskToParent(id);
+      });
+
+      const starBtn = document.createElement('button');
+      starBtn.type = 'button';
+      starBtn.className = task.isImportant ? 'btn-star active' : 'btn-star';
+      starBtn.textContent = task.isImportant ? '★' : '☆';
+      starBtn.title = task.isImportant ? '중요 해제' : '중요 표시';
+      starBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        updateImportantFlag(id, !task.isImportant);
+      });
+
+      const memoBtn = document.createElement('button');
+      memoBtn.type = 'button';
+      memoBtn.className = 'btn-secondary';
+      memoBtn.textContent = '메모';
+      memoBtn.title = task.memo ? `메모 편집: ${task.memo}` : '메모 편집';
+      memoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setMemoTarget(id, true);
+      });
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn-secondary';
+      copyBtn.textContent = '복사';
+      copyBtn.title = '현재 디렉토리에 하위까지 복사';
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cloneTaskSubtree(id, currentParentId);
+      });
+
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'btn-secondary';
+      renameBtn.textContent = '수정';
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextTitle = window.prompt('작업 이름을 수정하세요.', task.title);
+        if (nextTitle === null) return;
+        renameTask(id, nextTitle);
+      });
+
+      const todayWrap = document.createElement('label');
+      todayWrap.className = 'checkbox-mini';
+      const todayCheck = document.createElement('input');
+      todayCheck.type = 'checkbox';
+      todayCheck.checked = Boolean(task.isToday);
+      todayCheck.addEventListener('change', (e) => {
+        e.stopPropagation();
+        updateTodayFlag(id, todayCheck.checked);
+      });
+      todayWrap.appendChild(todayCheck);
+      todayWrap.appendChild(document.createTextNode('오늘할일'));
+
+      const priorityField = document.createElement('input');
+      priorityField.type = 'number';
+      priorityField.className = 'priority-input';
+      priorityField.placeholder = '우선순위';
+      priorityField.value = task.priority === null ? '' : task.priority;
+      priorityField.title = '우선순위 입력(낮을수록 위)';
+      priorityField.addEventListener('change', (e) => {
+        e.stopPropagation();
+        updatePriority(id, e.target.value);
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn-danger';
+      del.textContent = '삭제';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteTask(id);
+      });
+
+        actions.appendChild(moveToAbove);
+        actions.appendChild(starBtn);
+        actions.appendChild(memoBtn);
+        actions.appendChild(copyBtn);
+        actions.appendChild(renameBtn);
+        actions.appendChild(priorityField);
+        actions.appendChild(todayWrap);
+        actions.appendChild(del);
+
+      li.appendChild(left);
+      li.appendChild(actions);
+
+      li.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('.task-actions')) return;
+        e.preventDefault();
+        toggleComplete(id);
+      });
+
+      li.addEventListener('dragstart', (e) => {
+        if (currentViewMode !== 'all') return;
+        draggingSavedListId = null;
+        draggingTaskId = id;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.dropEffect = 'move';
+        e.dataTransfer.setData('text/plain', id);
+      });
+
+      li.addEventListener('dragend', () => {
+        draggingTaskId = null;
+        li.classList.remove('dragging');
+        li.classList.remove('drag-before', 'drag-into');
+        delete li.dataset.dropSide;
+        document.querySelectorAll('.task-item').forEach((item) => {
+          item.classList.remove('drag-before', 'drag-into');
+          delete item.dataset.dropSide;
+        });
+        document.querySelectorAll('.custom-tab-item.dragging-target').forEach((item) => {
+          item.classList.remove('dragging-target');
+        });
+      });
+
+        li.addEventListener('dragover', (e) => {
+        if (currentViewMode !== 'all') return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!draggingTaskId || draggingTaskId === id) return;
+
+        const rect = li.getBoundingClientRect();
+        const isInto = e.clientY >= rect.top + rect.height / 2;
+        li.classList.remove('drag-before', 'drag-into');
+        if (isInto) {
+          li.classList.add('drag-into');
+          li.dataset.dropSide = 'into';
+        } else {
+          li.classList.add('drag-before');
+          li.dataset.dropSide = 'before';
+        }
+      });
+
+      li.addEventListener('dragleave', () => {
+        if (currentViewMode !== 'all') return;
+        li.classList.remove('drag-before', 'drag-into');
+        delete li.dataset.dropSide;
+      });
+
+      li.addEventListener('drop', (e) => {
+        if (currentViewMode !== 'all') return;
+        e.preventDefault();
+        const side = li.dataset.dropSide || 'before';
+        const targetId = li.dataset.id;
+        const dropParentId = li.dataset.parentId || currentParentId;
+        li.classList.remove('drag-before', 'drag-into');
+        delete li.dataset.dropSide;
+
+        if (side === 'into') {
+          moveTaskIntoTask(draggingTaskId, targetId);
+        } else {
+          moveTaskInSameParent(draggingTaskId, targetId, 'before', dropParentId);
+        }
+        draggingTaskId = null;
+      });
+
+      return li;
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = '';
+      emptyState.style.display = 'none';
+
+      const visibleRows = getVisibleTaskRows();
+      if (!visibleRows.length) {
+        emptyState.textContent = currentViewMode === 'today'
+          ? '오늘 할일로 지정된 작업이 없습니다.'
+          : currentViewMode === 'important'
+            ? '중요로 지정된 작업이 없습니다.'
+            : currentViewMode === 'date'
+              ? '해당 날짜에 작업이 없습니다.'
+            : '작업이 없습니다.';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      visibleRows.forEach((row) => {
+        const { id } = row;
+        const task = getTaskNode(id);
+        if (!task) return;
+
+        const li = createTaskItem(task, id, currentParentId);
+        taskList.appendChild(li);
+      });
+    }
+
+    function getTaskPathLabel(taskId) {
+      const nodes = getPathNodes(taskId);
+      return nodes.map((node) => node.title).join(' > ');
+    }
+
+    function setMemoTarget(taskId, shouldFocus = false) {
+      const target = getTaskNode(taskId);
+      if (!target || target.id === ROOT_ID) {
+        memoTargetTaskId = null;
+      } else {
+        memoTargetTaskId = taskId;
+      }
+
+      renderMemoPanel();
+
+      if (shouldFocus && !memoPanelInput.disabled) {
+        memoPanelInput.focus();
+      }
+    }
+
+    function renderMemoPanel() {
+      const target = memoTargetTaskId ? getTaskNode(memoTargetTaskId) : null;
+      if (!target || target.id === ROOT_ID) {
+        memoTargetTaskId = null;
+        memoPanelTitle.textContent = '작업 메모';
+        memoPanelTarget.textContent = '작업을 클릭하면 해당 작업 메모를 작성할 수 있습니다.';
+        memoPanelInput.value = '';
+        memoPanelInput.disabled = true;
+        memoPanelEmpty.style.display = 'block';
+        return;
+      }
+
+      memoPanelTitle.textContent = `${target.title} 메모`;
+      memoPanelTarget.textContent = `현재 작업 디렉토리: ${getTaskPathLabel(target.id)}`;
+      memoPanelInput.value = target.memo || '';
+      memoPanelInput.disabled = false;
+      memoPanelEmpty.style.display = 'none';
+    }
+
+    function render() {
+      if (!getTaskNode(currentParentId)) currentParentId = ROOT_ID;
+      renderTabs();
+      updateDateSectionUI();
+      updateFolderSectionUI();
+      updatePathSectionUI();
+      renderCreatedDateList();
+      renderCustomTabs();
+      renderPathLists();
+      renderBreadcrumb();
+      renderTasks();
+      renderMemoPanel();
+    }
+
+    function init() {
+      ensureNodeStructure();
+      render();
+
+      if (createdDateToggleBtn) {
+        createdDateToggleBtn.addEventListener('click', () => {
+          isDateSectionOpen = !isDateSectionOpen;
+          updateDateSectionUI();
+          if (isDateSectionOpen) {
+            renderCreatedDateList();
+          } else if (createdDateList) {
+            createdDateList.innerHTML = '';
+          }
+        });
+      }
+
+      if (folderViewToggleBtn) {
+        folderViewToggleBtn.addEventListener('click', () => {
+          isFolderViewOpen = !isFolderViewOpen;
+          if (isFolderViewOpen) {
+            updateFolderSectionUI();
+            renderCustomTabs();
+          } else {
+            if (customTabList) {
+              customTabList.innerHTML = '';
+            }
+            updateFolderSectionUI();
+          }
+        });
+      }
+
+      if (pathViewToggleBtn) {
+        pathViewToggleBtn.addEventListener('click', () => {
+          isListViewOpen = !isListViewOpen;
+          if (isListViewOpen) {
+            updatePathSectionUI();
+            renderPathLists();
+          } else {
+            if (pathListContainer) {
+              pathListContainer.innerHTML = '';
+            }
+            updatePathSectionUI();
+          }
+        });
+      }
+
+      tabAll.addEventListener('click', () => {
+        if (currentViewMode !== 'all') {
+          currentViewMode = 'all';
+          currentDateFilterKey = null;
+          isDateSectionOpen = false;
+          currentPathListId = null;
+          currentParentId = ROOT_ID;
+          render();
+        }
+      });
+
+      tabToday.addEventListener('click', () => {
+        if (currentViewMode !== 'today') {
+          currentViewMode = 'today';
+          currentDateFilterKey = null;
+          isDateSectionOpen = false;
+          currentPathListId = null;
+          currentParentId = ROOT_ID;
+          render();
+        }
+      });
+
+      tabImportant.addEventListener('click', () => {
+        if (currentViewMode !== 'important') {
+          currentViewMode = 'important';
+          currentDateFilterKey = null;
+          isDateSectionOpen = false;
+          currentPathListId = null;
+          currentParentId = ROOT_ID;
+          render();
+        }
+      });
+
+      addCustomTabBtn.addEventListener('click', () => {
+        const title = sanitizeCustomTabName(customTabNameInput.value);
+        createCustomTab(title);
+        customTabNameInput.value = '';
+        customTabNameInput.focus();
+      });
+
+      customTabNameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addCustomTabBtn.click();
+        }
+      });
+
+      addPathListBtn.addEventListener('click', () => {
+        const title = sanitizeCustomTabName(pathListNameInput.value);
+        createPathList(title);
+        pathListNameInput.value = '';
+        pathListNameInput.focus();
+      });
+
+      pathListNameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addPathListBtn.click();
+        }
+      });
+
+      saveStateBtn.addEventListener('click', () => {
+        downloadStateFile();
+      });
+
+      if (exportTreeBtn) {
+        exportTreeBtn.addEventListener('click', () => {
+          exportTaskTreeText();
+        });
+      }
+
+        clearTodayBtn.addEventListener('click', () => {
+          clearTodayInCurrentView();
+        });
+
+      loadStateBtn.addEventListener('click', () => {
+        pickAndLoadStateFromFile();
+      });
+
+      importFileInput.addEventListener('change', (event) => {
+        const files = event.target.files;
+        if (!files || !files[0]) return;
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+          const raw = readerEvent.target.result;
+          loadStateFromFileObject(raw);
+          importFileInput.value = '';
+        };
+        reader.readAsText(files[0], 'utf-8');
+      });
+
+      goRootBtn.addEventListener('click', () => {
+        setCurrentParent(ROOT_ID);
+      });
+
+      taskList.addEventListener('dragover', (e) => {
+        if (currentViewMode !== 'all') return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      taskList.addEventListener('drop', (e) => {
+        if (currentViewMode !== 'all') return;
+        e.preventDefault();
+        if (!draggingTaskId) return;
+
+        const li = e.target.closest('.task-item');
+        if (!li) {
+          moveTaskInSameParent(draggingTaskId, null, 'after');
+          draggingTaskId = null;
+          return;
+        }
+
+        const side = li.dataset.dropSide || 'before';
+        const targetId = li.dataset.id;
+        if (side === 'into') {
+          moveTaskIntoTask(draggingTaskId, targetId);
+        } else {
+          moveTaskInSameParent(draggingTaskId, targetId, 'before');
+        }
+        draggingTaskId = null;
+
+        document.querySelectorAll('.task-item').forEach((item) => {
+          item.classList.remove('drag-before', 'drag-into');
+          delete item.dataset.dropSide;
+        });
+      });
+
+      customTabList.addEventListener('dragover', (e) => {
+        if (currentViewMode !== 'all' || !draggingCustomTabId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      customTabList.addEventListener('drop', (e) => {
+        if (currentViewMode !== 'all' || !draggingCustomTabId) return;
+        e.preventDefault();
+
+        const visibleCustomTabs = Array.isArray(state.customTabs)
+          ? [...state.customTabs].filter((tab) => {
+            const node = getTaskNode(tab.id);
+            return node && node.isCustomFolder && node.parentId === ROOT_ID;
+          })
+          : [];
+        visibleCustomTabs.sort((a, b) => (a.createdOrder - b.createdOrder));
+
+        const sourceIndex = visibleCustomTabs.findIndex((tab) => String(tab.id) === String(draggingCustomTabId));
+        const targetIndex = visibleCustomTabs.length ? visibleCustomTabs.length - 1 : -1;
+
+        if (sourceIndex !== -1 && targetIndex !== -1) {
+          const sourceGlobalIndex = state.customTabs.findIndex((tab) => String(tab.id) === String(visibleCustomTabs[sourceIndex].id));
+          const targetGlobalIndex = targetIndex >= 0 ? state.customTabs.findIndex((tab) => String(tab.id) === String(visibleCustomTabs[targetIndex].id)) : -1;
+          if (sourceGlobalIndex !== -1 && targetGlobalIndex !== -1) {
+            moveCustomTab(sourceGlobalIndex, targetGlobalIndex);
+          }
+        }
+
+        draggingCustomTabId = null;
+      });
+
+      pathListContainer.addEventListener('dragover', (e) => {
+        if (currentViewMode !== 'all' || !draggingSavedListId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      pathListContainer.addEventListener('drop', (e) => {
+        if (currentViewMode !== 'all' || !draggingSavedListId) return;
+        e.preventDefault();
+
+        const visiblePathLists = Array.isArray(state.pathLists)
+          ? [...state.pathLists].sort((a, b) => (a.createdOrder - b.createdOrder))
+          : [];
+        const sourceIndex = visiblePathLists.findIndex((listItem) => String(listItem.id) === String(draggingSavedListId));
+        const targetIndex = visiblePathLists.length ? visiblePathLists.length - 1 : -1;
+
+        if (sourceIndex !== -1 && targetIndex !== -1) {
+          const sourceGlobalIndex = state.pathLists.findIndex((listItem) => String(listItem.id) === String(visiblePathLists[sourceIndex].id));
+          const targetGlobalIndex = targetIndex >= 0 ? state.pathLists.findIndex((listItem) => String(listItem.id) === String(visiblePathLists[targetIndex].id)) : -1;
+          if (sourceGlobalIndex !== -1 && targetGlobalIndex !== -1) {
+            movePathList(sourceGlobalIndex, targetGlobalIndex);
+          }
+        }
+
+        draggingSavedListId = null;
+      });
+
+      memoPanelInput.addEventListener('input', () => {
+        const target = getTaskNode(memoTargetTaskId);
+        if (!target || target.id === ROOT_ID) return;
+
+        target.memo = memoPanelInput.value || '';
+
+        if (memoSaveTimer) {
+          clearTimeout(memoSaveTimer);
+        }
+        memoSaveTimer = setTimeout(() => {
+          memoSaveTimer = null;
+          saveState();
+        }, 200);
+      });
+
+      memoPanelInput.addEventListener('blur', () => {
+        if (!memoTargetTaskId) return;
+        const target = getTaskNode(memoTargetTaskId);
+        if (!target || target.id === ROOT_ID) return;
+
+        if (memoSaveTimer) {
+          clearTimeout(memoSaveTimer);
+          memoSaveTimer = null;
+        }
+        saveState();
+      });
+
+      addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = sanitizeTaskTitle(taskInput.value);
+        if (!title) return;
+
+        const priority = parsePriority(taskPriorityInput.value);
+        const isToday = taskTodayInput.checked;
+
+        addTask(title, priority, isToday);
+        taskInput.value = '';
+        taskPriorityInput.value = '';
+        taskTodayInput.checked = false;
+        taskInput.focus();
+        });
+
+        taskInput.focus();
+        saveState();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') flushSaveState();
+        });
+        window.addEventListener('beforeunload', flushSaveState);
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
+
