@@ -60,6 +60,9 @@ BODY_FONT = (FONT, 12)
 SMALL_FONT = (FONT, 11)
 READ_BODY_FONT = (READ_FONT, 12)
 READ_TITLE_FONT = (READ_FONT, 15, "bold")
+CONTROL_FONT = (READ_FONT, 11)
+MAX_CONTENT_WIDTH = 1120
+MIN_CONTENT_WIDTH = 420
 
 
 def app_dir():
@@ -314,12 +317,12 @@ class App(ctk.CTk):
 
     def make_btn(self, parent, text, command, color=None, variant="soft", height=36):
         if variant == "nav":
-            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["sidebar_soft"], hover_color="#dff3fb", text_color=COL["sidebar_text"], height=height, corner_radius=12, font=SMALL_FONT, border_width=1, border_color=COL["sidebar_line"])
+            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["sidebar_soft"], hover_color="#dff3fb", text_color=COL["sidebar_text"], height=height, corner_radius=12, font=CONTROL_FONT, border_width=1, border_color=COL["sidebar_line"])
         if variant == "danger":
-            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["danger_soft"], hover_color="#ffdfe2", text_color=COL["danger"], height=height, corner_radius=12, font=SMALL_FONT)
+            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["danger_soft"], hover_color="#ffdfe2", text_color=COL["danger"], height=height, corner_radius=12, font=CONTROL_FONT)
         if color:
-            return ctk.CTkButton(parent, text=text, command=command, fg_color=color, hover_color=COL["primary_hover"], text_color="white", height=height, corner_radius=12, font=SMALL_FONT)
-        return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["soft"], hover_color="#e8eef5", text_color=COL["text"], height=height, corner_radius=12, font=SMALL_FONT, border_width=1, border_color=COL["line"])
+            return ctk.CTkButton(parent, text=text, command=command, fg_color=color, hover_color=COL["primary_hover"], text_color="white", height=height, corner_radius=12, font=CONTROL_FONT)
+        return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["soft"], hover_color="#e8eef5", text_color=COL["text"], height=height, corner_radius=12, font=CONTROL_FONT, border_width=1, border_color=COL["line"])
 
     def pill(self, parent, text, color=None):
         return ctk.CTkLabel(parent, text=text, font=(FONT, 11, "bold"), text_color="white" if color else COL["muted"], fg_color=color or COL["soft"], corner_radius=16, padx=12, pady=5)
@@ -345,26 +348,32 @@ class App(ctk.CTk):
         ctk.CTkLabel(self.side, text=title, font=SECTION_FONT, text_color=COL["sidebar_text"], anchor="w").grid(row=row, column=0, sticky="ew", padx=22)
         frame = ctk.CTkScrollableFrame(self.side, fg_color=COL["sidebar_soft"], height=100, corner_radius=16, border_width=1, border_color=COL["sidebar_line"]); frame.grid(row=row+1, column=0, sticky="ew", padx=22, pady=(8, 14)); frame.grid_columnconfigure(0, weight=1); return frame
     def build_main(self):
-        self.main = ctk.CTkFrame(self, fg_color=COL["bg"], corner_radius=0); self.main.grid(row=0, column=1, sticky="nsew", padx=22, pady=20); self.main.grid_columnconfigure(0, weight=1); self.main.grid_rowconfigure(5, weight=1)
-        hero = ctk.CTkFrame(self.main, fg_color=COL["hero"], corner_radius=24, border_width=1, border_color=COL["hero_line"]); hero.grid(row=0, column=0, sticky="ew", pady=(0, 16)); hero.grid_columnconfigure(0, weight=1)
+        self.main = ctk.CTkFrame(self, fg_color=COL["bg"], corner_radius=0); self.main.grid(row=0, column=1, sticky="nsew", padx=22, pady=20); self.main.grid_columnconfigure(0, weight=1); self.main.grid_rowconfigure(0, weight=1); self.main.bind("<Configure>", self.fit_main_content)
+        self.content = ctk.CTkFrame(self.main, fg_color="transparent", width=MAX_CONTENT_WIDTH); self.content.grid(row=0, column=0, sticky="nsew"); self.content.grid_propagate(False); self.content.grid_columnconfigure(0, weight=1); self.content.grid_rowconfigure(5, weight=1)
+        hero = ctk.CTkFrame(self.content, fg_color=COL["hero"], corner_radius=24, border_width=1, border_color=COL["hero_line"]); hero.grid(row=0, column=0, sticky="ew", pady=(0, 16)); hero.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(hero, text="Focus Workspace", font=(FONT, 12, "bold"), text_color=COL["accent"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 0))
         self.path_label = ctk.CTkLabel(hero, text="루트", font=(FONT, 26, "bold"), text_color=COL["text"], anchor="w"); self.path_label.grid(row=1, column=0, sticky="ew", padx=22, pady=(2, 0))
         self.hint = ctk.CTkLabel(hero, text="", font=BODY_FONT, text_color=COL["muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
         self.summary = ctk.CTkLabel(hero, text="", font=(FONT, 13, "bold"), text_color="white", fg_color=COL["primary"], corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
-        add = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=22, border_width=1, border_color=COL["line"]); add.grid(row=2, column=0, sticky="ew", pady=(0, 12)); add.grid_columnconfigure(0, weight=1)
+        add = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=22, border_width=1, border_color=COL["line"]); add.grid(row=2, column=0, sticky="ew", pady=(0, 12)); add.grid_columnconfigure(0, weight=1)
         self.title_entry = ctk.CTkEntry(add, placeholder_text="새 작업을 입력하세요", height=46, font=(READ_FONT, 13), border_color=COL["line"], fg_color=COL["soft"]); self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14); self.title_entry.bind("<Return>", lambda _e: self.add_task())
-        self.kind_var = ctk.StringVar(value="할 일"); ctk.CTkOptionMenu(add, values=["할 일", "메모"], variable=self.kind_var, width=92, height=46, font=SMALL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"]).grid(row=0, column=1, padx=(0, 8))
-        self.priority = ctk.CTkEntry(add, placeholder_text="우선순위", width=100, height=46, font=SMALL_FONT, border_color=COL["line"], fg_color=COL["soft"]); self.priority.grid(row=0, column=2, padx=(0, 8))
+        self.kind_var = ctk.StringVar(value="할 일"); ctk.CTkOptionMenu(add, values=["할 일", "메모"], variable=self.kind_var, width=92, height=46, font=CONTROL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"]).grid(row=0, column=1, padx=(0, 8))
+        self.priority = ctk.CTkEntry(add, placeholder_text="우선순위", width=100, height=46, font=CONTROL_FONT, border_color=COL["line"], fg_color=COL["soft"]); self.priority.grid(row=0, column=2, padx=(0, 8))
         self.today_var = ctk.BooleanVar(value=False); ctk.CTkCheckBox(add, text="오늘", variable=self.today_var, width=70).grid(row=0, column=3, padx=(0, 8))
         self.make_btn(add, "추가", self.add_task, COL["primary"]).grid(row=0, column=4, padx=(0, 12), sticky="ns")
-        self.paste = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=18, border_width=1, border_color=COL["line"]); self.paste.grid_columnconfigure(0, weight=1)
+        self.paste = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=18, border_width=1, border_color=COL["line"]); self.paste.grid_columnconfigure(0, weight=1)
         self.paste_text = ctk.CTkTextbox(self.paste, height=110, font=READ_BODY_FONT); self.paste_text.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
         self.make_btn(self.paste, "붙여넣기 추가", self.add_pasted_tree, COL["primary"]).grid(row=0, column=1, padx=(0,12), pady=12, sticky="ns")
-        tb = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=20, border_width=1, border_color=COL["line"]); tb.grid(row=3, column=0, sticky="ew", pady=(0, 12)); tb.grid_columnconfigure((0,1,2), weight=1)
+        tb = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=20, border_width=1, border_color=COL["line"]); tb.grid(row=3, column=0, sticky="ew", pady=(0, 12)); tb.grid_columnconfigure((0,1,2), weight=1)
         self.action_group(tb, "탐색", [("루트", self.go_root), ("열기", self.open_selected), ("위로 이동", self.move_to_parent), ("트리 붙여넣기", self.toggle_paste)], 0)
         self.action_group(tb, "작업", [("수정", self.rename_selected), ("복사", self.copy_selected), ("삭제", self.delete_selected), ("메모화", self.memoize_selected), ("할 일화", self.taskify_selected)], 1)
         self.action_group(tb, "상태", [("완료", self.toggle_done), ("중요", self.toggle_important), ("오늘", self.toggle_today), ("다음 행동", self.next_action), ("목록에 추가", self.add_to_list), ("목록에서 제거", self.remove_from_list)], 2)
-        self.cards = ctk.CTkScrollableFrame(self.main, fg_color="transparent"); self.cards.grid(row=5, column=0, sticky="nsew"); self.cards.grid_columnconfigure(0, weight=1)
+        self.cards = ctk.CTkScrollableFrame(self.content, fg_color="transparent"); self.cards.grid(row=5, column=0, sticky="nsew"); self.cards.grid_columnconfigure(0, weight=1)
+
+    def fit_main_content(self, event=None):
+        width = event.width if event else self.main.winfo_width()
+        target = min(MAX_CONTENT_WIDTH, max(MIN_CONTENT_WIDTH, width - 8))
+        self.content.configure(width=target)
 
     def action_group(self, parent, title, actions, col):
         frame = ctk.CTkFrame(parent, fg_color="transparent"); frame.grid(row=0, column=col, sticky="nsew", padx=10, pady=10); frame.grid_columnconfigure((0,1), weight=1)
