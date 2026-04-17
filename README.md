@@ -2,7 +2,7 @@
 
 Windows에서 바로 실행하는 개인용 작업 큐/메모 프로그램입니다.
 
-현재 기본 버전은 `Python + Tkinter`로 만든 네이티브 GUI입니다. Electron/HTML 실행 방식은 더 이상 기본이 아니며, 이전 HTML은 `legacy/task_explorer.html`에 백업으로만 남겨두었습니다.
+현재 기본 버전은 `Python + customtkinter`로 만든 단일 실행 파일입니다. Electron은 사용하지 않습니다. 기본 Tkinter 테이블 UI를 버리고 카드형 작업 탐색 UI로 구성했습니다.
 
 ## 바로 실행
 
@@ -78,8 +78,8 @@ Python 3.14 기준으로 확인했습니다.
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install pyinstaller
-.\.venv\Scripts\python.exe -m PyInstaller --onefile --windowed --name TaskExplorer task_explorer_native.py
+.\.venv\Scripts\python.exe -m pip install pyinstaller customtkinter
+.\.venv\Scripts\python.exe -m PyInstaller --onefile --windowed --name TaskExplorer --collect-data customtkinter task_explorer_native.py
 ```
 
 결과:
@@ -92,7 +92,7 @@ dist/TaskExplorer.exe
 
 ```text
 dist/TaskExplorer.exe       바로 실행하는 단일 exe
-task_explorer_native.py     네이티브 앱 소스
+task_explorer_native.py     customtkinter 네이티브 앱 소스
 legacy/task_explorer.html   이전 HTML 버전 백업
 ```
 
