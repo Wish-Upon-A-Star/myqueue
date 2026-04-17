@@ -44,8 +44,9 @@ COL = {
     "matrix_b": "#fff0cf",
     "matrix_c": "#dff1ff",
     "matrix_d": "#edf1f5",
-    "hero": "#0f2235",
-    "hero_soft": "#14304a",
+    "hero": "#fbf8f3",
+    "hero_soft": "#fff3e3",
+    "hero_line": "#efd8bf",
 }
 
 FONT = "Malgun Gothic"
@@ -324,7 +325,7 @@ class App(ctk.CTk):
         self.search = ctk.CTkEntry(self.side, placeholder_text="작업 / 메모 검색", height=42, fg_color=COL["sidebar_soft"], border_color=COL["sidebar_line"], text_color=COL["sidebar_text"], placeholder_text_color=COL["sidebar_muted"], font=SMALL_FONT); self.search.grid(row=2, column=0, sticky="ew", padx=22); self.search.bind("<Return>", lambda _e: self.refresh_cards())
         self.make_btn(self.side, "검색", self.refresh_cards, COL["primary"], height=42).grid(row=3, column=0, sticky="ew", padx=22, pady=(8, 20))
         ctk.CTkLabel(self.side, text="작업 보기", font=SECTION_FONT, text_color=COL["sidebar_text"], anchor="w").grid(row=4, column=0, sticky="ew", padx=22)
-        modes = [("전체", "all"), ("오늘 할 일", "today"), ("중요", "important"), ("4분할", "matrix"), ("완료", "done")]
+        modes = [("전체", "all"), ("오늘 할 일", "today"), ("중요", "important"), ("우선순위 맵", "matrix"), ("완료", "done")]
         mf = ctk.CTkFrame(self.side, fg_color="transparent"); mf.grid(row=5, column=0, sticky="ew", padx=22, pady=(8, 18)); mf.grid_columnconfigure((0,1), weight=1)
         for i, (t, v) in enumerate(modes): self.make_btn(mf, t, lambda x=v: self.set_view(x), variant="nav").grid(row=i//2, column=i%2, sticky="ew", padx=3, pady=3)
         ctk.CTkLabel(self.side, text="콘텐츠 필터", font=SECTION_FONT, text_color=COL["sidebar_text"], anchor="w").grid(row=6, column=0, sticky="ew", padx=22)
@@ -339,11 +340,11 @@ class App(ctk.CTk):
         frame = ctk.CTkScrollableFrame(self.side, fg_color=COL["sidebar_soft"], height=100, corner_radius=16, border_width=1, border_color=COL["sidebar_line"]); frame.grid(row=row+1, column=0, sticky="ew", padx=22, pady=(8, 14)); frame.grid_columnconfigure(0, weight=1); return frame
     def build_main(self):
         self.main = ctk.CTkFrame(self, fg_color=COL["bg"], corner_radius=0); self.main.grid(row=0, column=1, sticky="nsew", padx=22, pady=20); self.main.grid_columnconfigure(0, weight=1); self.main.grid_rowconfigure(5, weight=1)
-        hero = ctk.CTkFrame(self.main, fg_color=COL["hero"], corner_radius=24); hero.grid(row=0, column=0, sticky="ew", pady=(0, 16)); hero.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(hero, text="Focus Workspace", font=(FONT, 12, "bold"), text_color=COL["sidebar_muted"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 0))
-        self.path_label = ctk.CTkLabel(hero, text="루트", font=(FONT, 26, "bold"), text_color=COL["sidebar_text"], anchor="w"); self.path_label.grid(row=1, column=0, sticky="ew", padx=22, pady=(2, 0))
-        self.hint = ctk.CTkLabel(hero, text="", font=BODY_FONT, text_color=COL["sidebar_muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
-        self.summary = ctk.CTkLabel(hero, text="", font=(FONT, 13, "bold"), text_color=COL["hero"], fg_color="#f7d7bd", corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
+        hero = ctk.CTkFrame(self.main, fg_color=COL["hero"], corner_radius=24, border_width=1, border_color=COL["hero_line"]); hero.grid(row=0, column=0, sticky="ew", pady=(0, 16)); hero.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(hero, text="Focus Workspace", font=(FONT, 12, "bold"), text_color=COL["accent"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 0))
+        self.path_label = ctk.CTkLabel(hero, text="루트", font=(FONT, 26, "bold"), text_color=COL["text"], anchor="w"); self.path_label.grid(row=1, column=0, sticky="ew", padx=22, pady=(2, 0))
+        self.hint = ctk.CTkLabel(hero, text="", font=BODY_FONT, text_color=COL["muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
+        self.summary = ctk.CTkLabel(hero, text="", font=(FONT, 13, "bold"), text_color="white", fg_color=COL["primary"], corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
         add = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=22, border_width=1, border_color=COL["line"]); add.grid(row=2, column=0, sticky="ew", pady=(0, 12)); add.grid_columnconfigure(0, weight=1)
         self.title_entry = ctk.CTkEntry(add, placeholder_text="새 작업을 입력하세요", height=46, font=(FONT, 13), border_color=COL["line"], fg_color=COL["soft"]); self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14); self.title_entry.bind("<Return>", lambda _e: self.add_task())
         self.kind_var = ctk.StringVar(value="할 일"); ctk.CTkOptionMenu(add, values=["할 일", "메모"], variable=self.kind_var, width=92, height=46, font=SMALL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"]).grid(row=0, column=1, padx=(0, 8))
@@ -457,14 +458,14 @@ class App(ctk.CTk):
             ctk.CTkLabel(card, text=desc, font=SMALL_FONT, text_color=COL["muted"], anchor="w", justify="left", wraplength=210).grid(row=2, column=0, sticky="ew", padx=14, pady=(4, 14))
 
     def render_matrix(self):
-        groups={"급하고 중요한 일":[],"중요하지만 급하지 않은 일":[],"급하지만 중요하지 않은 일":[],"둘 다 아닌 일":[]}
+        groups={"최우선 실행":[],"중요한 계획":[],"빠른 처리":[],"나중에 검토":[]}
         for n in self.store.all_nodes():
             if not self.row_visible(n) or n.get("completed"): continue
-            if n.get("isToday") and n.get("isImportant"): groups["급하고 중요한 일"].append(n["id"])
-            elif n.get("isImportant"): groups["중요하지만 급하지 않은 일"].append(n["id"])
-            elif n.get("isToday"): groups["급하지만 중요하지 않은 일"].append(n["id"])
-            else: groups["둘 다 아닌 일"].append(n["id"])
-        self.summary.configure(text=f"4분할 {sum(len(v) for v in groups.values())}개 항목")
+            if n.get("isToday") and n.get("isImportant"): groups["최우선 실행"].append(n["id"])
+            elif n.get("isImportant"): groups["중요한 계획"].append(n["id"])
+            elif n.get("isToday"): groups["빠른 처리"].append(n["id"])
+            else: groups["나중에 검토"].append(n["id"])
+        self.summary.configure(text=f"우선순위 맵 {sum(len(v) for v in groups.values())}개")
         colors=[COL["matrix_a"], COL["matrix_b"], COL["matrix_c"], COL["matrix_d"]]
         for i,(title,ids) in enumerate(groups.items()):
             sec=ctk.CTkFrame(self.cards,fg_color=colors[i],corner_radius=20,border_width=1,border_color=COL["line"]); sec.grid(row=i//2,column=i%2,sticky="nsew",padx=8,pady=8); self.cards.grid_columnconfigure(i%2,weight=1)
