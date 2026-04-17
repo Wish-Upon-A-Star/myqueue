@@ -172,6 +172,13 @@ class TaskStore:
             if node_id not in referenced and node.get("parentId") not in self.nodes:
                 node["parentId"] = ROOT_ID
                 root_children.append(node_id)
+        self.state["pathLists"] = [x for x in self.path_lists if isinstance(x, dict)]
+        for item in self.path_lists:
+            item.setdefault("id", new_id("list"))
+            item.setdefault("title", "목록")
+            item.setdefault("taskIds", [])
+            item["taskIds"] = [x for x in item.get("taskIds", []) if x in valid and x != ROOT_ID]
+        self.state["customTabs"] = [x for x in self.custom_tabs if isinstance(x, dict) and x.get("id") in valid]
         self.sort_all_children()
 
     def children(self, parent_id):
@@ -237,8 +244,16 @@ class TaskStore:
         return node_id
 
     def folders(self):
-        result = [n for n in self.nodes.values() if n.get("id") != ROOT_ID and n.get("isCustomFolder")]
-        return sorted(result, key=lambda n: n.get("createdOrder", 0))
+        result = {n.get("id"): n for n in self.nodes.values() if n.get("id") != ROOT_ID and n.get("isCustomFolder")}
+        ordered = []
+        seen = set()
+        for item in self.custom_tabs:
+            node = result.get(item.get("id"))
+            if node:
+                ordered.append(node)
+                seen.add(node["id"])
+        ordered.extend(sorted((n for nid, n in result.items() if nid not in seen), key=lambda n: n.get("createdOrder", 0)))
+        return ordered
 
     def add_path_list(self, title):
         item = {
@@ -267,12 +282,22 @@ class TaskStore:
         node = self.node(node_id)
         if not node:
             return
+        removed = []
+        def collect(x):
+            removed.append(x)
+            for cid in self.children(x):
+                collect(cid)
+        collect(node_id)
         for child_id in list(node.get("children", [])):
             self.delete_subtree(child_id)
         parent = self.node(node.get("parentId"))
         if parent and node_id in parent.get("children", []):
             parent["children"].remove(node_id)
         self.nodes.pop(node_id, None)
+        gone = set(removed)
+        self.state["customTabs"] = [x for x in self.custom_tabs if x.get("id") not in gone]
+        for item in self.path_lists:
+            item["taskIds"] = [x for x in item.get("taskIds", []) if x not in gone]
 
     def set_kind(self, node_id, kind, subtree=False):
         kind = "memo" if kind == "memo" else "task"
@@ -318,6 +343,31 @@ class TaskStore:
         new_parent.setdefault("children", []).append(node_id)
         self.sort_children(new_parent_id)
         return True
+
+    def clone_subtree(self, node_id, new_parent_id):
+        source = self.node(node_id)
+        parent = self.node(new_parent_id)
+        if not source or not parent or node_id == ROOT_ID:
+            return None
+        order = int(self.state.get("nextOrder", 1))
+        self.state["nextOrder"] = order + 1
+        clone_id = new_id("task")
+        clone = dict(source)
+        clone["id"] = clone_id
+        clone["parentId"] = parent["id"]
+        clone["createdAt"] = now_iso()
+        clone["createdOrder"] = order
+        clone["children"] = []
+        if clone.get("completed"):
+            clone["completedAt"] = now_iso()
+        if clone.get("isCustomFolder"):
+            clone["isCustomFolder"] = False
+        self.nodes[clone_id] = clone
+        parent.setdefault("children", []).append(clone_id)
+        for child_id in self.children(node_id):
+            self.clone_subtree(child_id, clone_id)
+        self.sort_children(parent["id"])
+        return clone_id
 
 
 def parse_tree_text(raw, keep_root=True):
@@ -378,6 +428,8 @@ class App(tk.Tk):
         self.current_path_list_id = None
         self.current_date_key = None
         self.dragging_id = None
+        self.dragging_list_index = None
+        self.dragging_folder_index = None
         self.folder_ids = []
         self.setup_style()
         self.create_widgets()
@@ -448,6 +500,8 @@ class App(tk.Tk):
         self.path_listbox = tk.Listbox(left, height=5, borderwidth=0, highlightthickness=1, highlightbackground=COLORS["line"], font=("Malgun Gothic", 9))
         self.path_listbox.grid(row=21, column=0, sticky="ew", pady=4)
         self.path_listbox.bind("<Double-1>", lambda _e: self.open_path_list())
+        self.path_listbox.bind("<ButtonPress-1>", self.on_path_list_drag_start)
+        self.path_listbox.bind("<ButtonRelease-1>", self.on_path_list_drag_drop)
         self.list_name = ttk.Entry(left)
         self.list_name.grid(row=22, column=0, sticky="ew")
         list_buttons = ttk.Frame(left, style="Panel.TFrame")
@@ -460,6 +514,8 @@ class App(tk.Tk):
         self.folder_listbox = tk.Listbox(left, height=5, borderwidth=0, highlightthickness=1, highlightbackground=COLORS["line"], font=("Malgun Gothic", 9))
         self.folder_listbox.grid(row=25, column=0, sticky="ew", pady=4)
         self.folder_listbox.bind("<Double-1>", lambda _e: self.open_folder())
+        self.folder_listbox.bind("<ButtonPress-1>", self.on_folder_drag_start)
+        self.folder_listbox.bind("<ButtonRelease-1>", self.on_folder_drag_drop)
         self.folder_name = ttk.Entry(left)
         self.folder_name.grid(row=26, column=0, sticky="ew")
         folder_buttons = ttk.Frame(left, style="Panel.TFrame")
@@ -499,8 +555,11 @@ class App(tk.Tk):
 
         toolbar = ttk.Frame(center)
         toolbar.grid(row=3, column=0, sticky="ew", pady=4)
-        for label, cmd in [("루트", self.go_root), ("열기", self.open_selected), ("수정", self.rename_selected), ("삭제", self.delete_selected), ("완료", self.toggle_done), ("중요", self.toggle_important), ("오늘", self.toggle_today), ("메모화", self.memoize_selected), ("할 일화", self.taskify_selected), ("다음 행동", self.next_action), ("목록에 추가", self.add_selected_to_path_list), ("목록에서 제거", self.remove_selected_from_current_list), ("위로 이동", self.move_to_parent)]:
-            ttk.Button(toolbar, text=label, command=cmd).pack(side=tk.LEFT, padx=2)
+        actions = [("루트", self.go_root), ("열기", self.open_selected), ("수정", self.rename_selected), ("삭제", self.delete_selected), ("복사", self.copy_selected), ("완료", self.toggle_done), ("중요", self.toggle_important), ("오늘", self.toggle_today), ("메모화", self.memoize_selected), ("할 일화", self.taskify_selected), ("다음 행동", self.next_action), ("목록에 추가", self.add_selected_to_path_list), ("목록에서 제거", self.remove_selected_from_current_list), ("위로 이동", self.move_to_parent)]
+        for col in range(7):
+            toolbar.columnconfigure(col, weight=1)
+        for idx, (label, cmd) in enumerate(actions):
+            ttk.Button(toolbar, text=label, command=cmd).grid(row=idx // 7, column=idx % 7, sticky="ew", padx=2, pady=2)
 
         columns = ("kind", "priority", "today", "important", "children", "created")
         self.tree = ttk.Treeview(center, columns=columns, show="tree headings", selectmode="browse")
@@ -767,6 +826,9 @@ class App(tk.Tk):
         node = self.selected_node()
         if node:
             self.current_parent = node["id"]
+            self.current_path_list_id = None
+            self.current_date_key = None
+            self.view_mode.set("all")
             self.selected_id = None
             self.refresh_all()
 
@@ -785,6 +847,9 @@ class App(tk.Tk):
         title = simpledialog.askstring(APP_TITLE, "이름 수정", initialvalue=node.get("title", ""))
         if title:
             node["title"] = title.strip()
+            for item in self.store.custom_tabs:
+                if item.get("id") == node["id"]:
+                    item["title"] = node["title"]
             self.save_and_refresh()
 
     def delete_selected(self):
@@ -794,6 +859,15 @@ class App(tk.Tk):
         if messagebox.askyesno(APP_TITLE, f"'{node.get('title')}'와 하위를 삭제할까요?"):
             self.store.delete_subtree(node["id"])
             self.selected_id = None
+            self.save_and_refresh()
+
+    def copy_selected(self):
+        node = self.selected_node()
+        if not node:
+            return
+        clone_id = self.store.clone_subtree(node["id"], self.current_parent)
+        if clone_id:
+            self.selected_id = clone_id
             self.save_and_refresh()
 
     def toggle_done(self):
@@ -1024,12 +1098,61 @@ class App(tk.Tk):
         target = self.tree.identify_row(event.y)
         source = self.dragging_id
         self.dragging_id = None
+        drop_widget = self.winfo_containing(event.x_root, event.y_root)
+        if drop_widget == self.path_listbox:
+            idx = self.path_listbox.nearest(event.y_root - self.path_listbox.winfo_rooty())
+            if 0 <= idx < len(self.store.path_lists):
+                item = self.store.path_lists[idx]
+                if source not in item.setdefault("taskIds", []):
+                    item["taskIds"].append(source)
+                    self.save_and_refresh()
+            return
+        if drop_widget == self.folder_listbox:
+            idx = self.folder_listbox.nearest(event.y_root - self.folder_listbox.winfo_rooty())
+            if 0 <= idx < len(self.folder_ids):
+                if self.store.move_node(source, self.folder_ids[idx]):
+                    self.save_and_refresh()
+            return
         if target and target in self.store.nodes and target != source:
             if self.store.move_node(source, target):
                 self.save_and_refresh()
         elif self.view_mode.get() == "all":
             if self.store.move_node(source, self.current_parent):
                 self.save_and_refresh()
+
+    def on_path_list_drag_start(self, event):
+        self.dragging_list_index = self.path_listbox.nearest(event.y)
+
+    def on_path_list_drag_drop(self, event):
+        if self.dragging_list_index is None:
+            return
+        target = self.path_listbox.nearest(event.y)
+        source = self.dragging_list_index
+        self.dragging_list_index = None
+        lists = self.store.path_lists
+        if 0 <= source < len(lists) and 0 <= target < len(lists) and source != target:
+            item = lists.pop(source)
+            lists.insert(target, item)
+            self.save_and_refresh()
+
+    def on_folder_drag_start(self, event):
+        self.dragging_folder_index = self.folder_listbox.nearest(event.y)
+
+    def on_folder_drag_drop(self, event):
+        if self.dragging_folder_index is None:
+            return
+        target = self.folder_listbox.nearest(event.y)
+        source = self.dragging_folder_index
+        self.dragging_folder_index = None
+        if not (0 <= source < len(self.folder_ids) and 0 <= target < len(self.folder_ids)) or source == target:
+            return
+        moved_id = self.folder_ids[source]
+        ordered_ids = list(self.folder_ids)
+        ordered_ids.pop(source)
+        ordered_ids.insert(target, moved_id)
+        tab_by_id = {x.get("id"): x for x in self.store.custom_tabs}
+        self.store.state["customTabs"] = [tab_by_id[i] for i in ordered_ids if i in tab_by_id]
+        self.save_and_refresh()
 
     def save_json(self):
         path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
