@@ -2,15 +2,33 @@
 
 작업을 파일 탐색기처럼 계층으로 관리하는 개인용 큐/메모 데스크톱 앱입니다.
 
-## 바로 실행
+## 현재 권장 실행 방식
 
-Windows에서는 아래 파일 하나만 실행하면 됩니다.
+이 저장소에는 실행 파일을 직접 올리지 않습니다. GitHub에 큰 exe를 커밋하는 방식은 잘못된 방식이라 제거했습니다.
 
-```text
-dist/TaskExplorer 1.0.0.exe
+개발 환경에서는 아래처럼 실행합니다.
+
+```powershell
+npm install
+npm start
 ```
 
-이 exe는 portable Electron 실행 파일입니다. 설치 과정 없이 더블클릭으로 실행합니다.
+## Windows 실행 파일 만들기
+
+아래 명령을 실행하면 설치 프로그램이나 portable 패키지가 아니라, 앱 폴더 안의 실제 실행 파일이 생성됩니다.
+
+```powershell
+npm install
+npm run dist
+```
+
+생성 위치:
+
+```text
+dist/win-unpacked/TaskExplorer.exe
+```
+
+이 `TaskExplorer.exe`가 실제 실행 파일입니다. 단, Electron 앱 특성상 같은 폴더의 `resources`, `locales`, dll 파일들이 같이 있어야 합니다. `TaskExplorer.exe` 파일 하나만 다른 곳으로 복사하면 실행되지 않을 수 있습니다.
 
 ## 주요 기능
 
@@ -61,40 +79,17 @@ dist/TaskExplorer 1.0.0.exe
 - `폴더에 저장`: 현재 상태를 JSON으로 내보냅니다.
 - `폴더에서 불러오기`: JSON 상태 파일 또는 트리 txt를 불러옵니다.
 
-브라우저 버전과 Electron exe 버전은 저장소가 서로 다릅니다. 기존 데이터를 exe 버전으로 옮기려면 `폴더에서 불러오기`로 JSON 파일을 선택하세요.
-
-## 개발 실행
-
-개발 환경에서 실행하려면 Node.js가 필요합니다.
-
-```powershell
-npm install
-npm start
-```
-
-## exe 다시 만들기
-
-```powershell
-npm install
-npm run dist
-```
-
-생성 결과:
-
-```text
-dist/TaskExplorer 1.0.0.exe
-```
+브라우저 버전과 Electron 버전은 저장소가 서로 다릅니다. 기존 데이터를 Electron 버전으로 옮기려면 `폴더에서 불러오기`로 JSON 파일을 선택하세요.
 
 ## 파일 구성
 
 ```text
-main.js                 Electron 실행 진입점
-package.json            실행/빌드 설정
-package-lock.json       npm 의존성 잠금 파일
-task_explorer.html      앱 본체 UI와 로직
-dist/TaskExplorer 1.0.0.exe  바로 실행 가능한 portable exe
+main.js             Electron 실행 진입점
+package.json        실행/빌드 설정
+package-lock.json   npm 의존성 잠금 파일
+task_explorer.html  앱 본체 UI와 로직
 ```
 
-## 주의
+## 배포 메모
 
-개인 작업 데이터 JSON은 저장소에 포함하지 않았습니다. 작업 내용이 들어간 JSON은 필요할 때 직접 백업해서 보관하세요.
+사용자에게 실행 파일을 배포하려면 `dist/win-unpacked` 폴더 전체를 압축해서 전달하는 방식이 현재 가장 정직합니다. exe 한 파일만 저장소에 커밋하지 않습니다.

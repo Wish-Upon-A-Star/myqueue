@@ -1,5 +1,4 @@
 ﻿node_modules/
-dist/win-unpacked/
-dist/builder-debug.yml
+dist/
 *.log
 .DS_Store
