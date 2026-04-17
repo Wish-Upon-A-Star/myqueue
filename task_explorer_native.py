@@ -5,10 +5,26 @@ import uuid
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
+from collections import defaultdict
 
 APP_TITLE = "작업 큐 탐색기"
 STATE_FILE = "task-explorer-state.json"
 ROOT_ID = "root"
+
+COLORS = {
+    "bg": "#eef4fb",
+    "panel": "#ffffff",
+    "line": "#d6e0ee",
+    "text": "#172033",
+    "muted": "#65728c",
+    "primary": "#2563eb",
+    "primary_soft": "#e7efff",
+    "memo": "#fff8e8",
+    "task": "#f8fbff",
+    "done": "#edf8ef",
+    "folder": "#edf2ff",
+    "important": "#fff7df",
+}
 
 
 def now_iso():
@@ -66,6 +82,14 @@ class TaskStore:
     @property
     def nodes(self):
         return self.state.setdefault("nodes", {})
+
+    @property
+    def path_lists(self):
+        return self.state.setdefault("pathLists", [])
+
+    @property
+    def custom_tabs(self):
+        return self.state.setdefault("customTabs", [])
 
     def node(self, node_id):
         return self.nodes.get(node_id)
@@ -199,6 +223,44 @@ class TaskStore:
         self.sort_children(parent["id"])
         return node_id
 
+    def add_folder(self, parent_id, title):
+        node_id = self.add_node(parent_id, title, kind="task")
+        node = self.node(node_id)
+        node["isCustomFolder"] = True
+        node["kind"] = "task"
+        self.custom_tabs.append({
+            "id": node_id,
+            "title": node["title"],
+            "createdOrder": node["createdOrder"],
+            "createdAt": node["createdAt"],
+        })
+        return node_id
+
+    def folders(self):
+        result = [n for n in self.nodes.values() if n.get("id") != ROOT_ID and n.get("isCustomFolder")]
+        return sorted(result, key=lambda n: n.get("createdOrder", 0))
+
+    def add_path_list(self, title):
+        item = {
+            "id": new_id("list"),
+            "title": title.strip() or "목록",
+            "taskIds": [],
+            "createdOrder": self.state.get("nextOrder", 1),
+            "createdAt": now_iso(),
+        }
+        self.state["nextOrder"] = int(self.state.get("nextOrder", 1)) + 1
+        self.path_lists.append(item)
+        return item["id"]
+
+    def path_list(self, list_id):
+        for item in self.path_lists:
+            if item.get("id") == list_id:
+                return item
+        return None
+
+    def all_nodes(self):
+        return [n for n in self.nodes.values() if n.get("id") != ROOT_ID]
+
     def delete_subtree(self, node_id):
         if node_id == ROOT_ID:
             return
@@ -305,6 +367,7 @@ class App(tk.Tk):
         self.title(APP_TITLE)
         self.geometry("1280x820")
         self.minsize(900, 600)
+        self.configure(bg=COLORS["bg"])
         self.store = TaskStore()
         self.current_parent = ROOT_ID
         self.selected_id = None
@@ -312,9 +375,33 @@ class App(tk.Tk):
         self.kind_filter = tk.StringVar(value="all")
         self.show_paste = tk.BooleanVar(value=False)
         self.search_text = tk.StringVar(value="")
+        self.current_path_list_id = None
+        self.current_date_key = None
+        self.dragging_id = None
+        self.folder_ids = []
+        self.setup_style()
         self.create_widgets()
         self.refresh_all()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def setup_style(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TFrame", background=COLORS["bg"])
+        style.configure("Panel.TFrame", background=COLORS["panel"])
+        style.configure("TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Malgun Gothic", 10))
+        style.configure("Panel.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Malgun Gothic", 10))
+        style.configure("Title.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Malgun Gothic", 20, "bold"))
+        style.configure("Muted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Malgun Gothic", 9))
+        style.configure("TButton", font=("Malgun Gothic", 9, "bold"), padding=(8, 5), background="#edf3fb", foreground=COLORS["text"])
+        style.map("TButton", background=[("active", COLORS["primary_soft"])])
+        style.configure("Primary.TButton", background=COLORS["primary"], foreground="#ffffff")
+        style.configure("Danger.TButton", background="#ffecec", foreground="#991b1b")
+        style.configure("TRadiobutton", background=COLORS["panel"], foreground=COLORS["text"], font=("Malgun Gothic", 9))
+        style.configure("TCheckbutton", background=COLORS["panel"], foreground=COLORS["text"], font=("Malgun Gothic", 9))
+        style.configure("Treeview", font=("Malgun Gothic", 10), rowheight=30, background="#ffffff", fieldbackground="#ffffff", foreground=COLORS["text"])
+        style.configure("Treeview.Heading", font=("Malgun Gothic", 9, "bold"), background="#e7edf6", foreground=COLORS["text"])
+        style.map("Treeview", background=[("selected", COLORS["primary"])], foreground=[("selected", "#ffffff")])
 
     def create_widgets(self):
         self.columnconfigure(0, weight=1)
@@ -323,26 +410,26 @@ class App(tk.Tk):
         top = ttk.Frame(self, padding=10)
         top.grid(row=0, column=0, sticky="ew")
         top.columnconfigure(1, weight=1)
-        ttk.Label(top, text=APP_TITLE, font=("Malgun Gothic", 18, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(top, text=APP_TITLE, style="Title.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Entry(top, textvariable=self.search_text).grid(row=0, column=1, sticky="ew", padx=12)
         ttk.Button(top, text="검색", command=self.refresh_tree).grid(row=0, column=2)
 
         main = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         main.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
-        left = ttk.Frame(main, padding=8)
-        center = ttk.Frame(main, padding=8)
-        right = ttk.Frame(main, padding=8)
+        left = ttk.Frame(main, padding=8, style="Panel.TFrame")
+        center = ttk.Frame(main, padding=8, style="Panel.TFrame")
+        right = ttk.Frame(main, padding=8, style="Panel.TFrame")
         main.add(left, weight=1)
         main.add(center, weight=4)
         main.add(right, weight=2)
 
         left.columnconfigure(0, weight=1)
-        ttk.Label(left, text="보기", font=("Malgun Gothic", 11, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(left, text="보기", style="Panel.TLabel", font=("Malgun Gothic", 11, "bold")).grid(row=0, column=0, sticky="w")
         for i, (label, value) in enumerate([("전체", "all"), ("오늘 할 일", "today"), ("중요", "important"), ("4분할", "matrix"), ("완료", "done")], start=1):
             ttk.Radiobutton(left, text=label, value=value, variable=self.view_mode, command=self.refresh_tree).grid(row=i, column=0, sticky="w", pady=2)
         ttk.Separator(left).grid(row=7, column=0, sticky="ew", pady=8)
-        ttk.Label(left, text="종류", font=("Malgun Gothic", 11, "bold")).grid(row=8, column=0, sticky="w")
+        ttk.Label(left, text="종류", style="Panel.TLabel", font=("Malgun Gothic", 11, "bold")).grid(row=8, column=0, sticky="w")
         for i, (label, value) in enumerate([("전체 보기", "all"), ("할 일만", "task"), ("메모만", "memo")], start=9):
             ttk.Radiobutton(left, text=label, value=value, variable=self.kind_filter, command=self.refresh_tree).grid(row=i, column=0, sticky="w", pady=2)
         ttk.Separator(left).grid(row=12, column=0, sticky="ew", pady=8)
@@ -350,6 +437,36 @@ class App(tk.Tk):
         ttk.Button(left, text="JSON 저장", command=self.save_json).grid(row=14, column=0, sticky="ew", pady=2)
         ttk.Button(left, text="TXT 내보내기", command=self.export_txt).grid(row=15, column=0, sticky="ew", pady=2)
         ttk.Button(left, text="현재 하위 메모화", command=self.memoize_current).grid(row=16, column=0, sticky="ew", pady=2)
+
+        ttk.Separator(left).grid(row=17, column=0, sticky="ew", pady=8)
+        ttk.Label(left, text="날짜", style="Panel.TLabel", font=("Malgun Gothic", 11, "bold")).grid(row=18, column=0, sticky="w")
+        self.date_list = tk.Listbox(left, height=7, borderwidth=0, highlightthickness=1, highlightbackground=COLORS["line"], font=("Malgun Gothic", 9))
+        self.date_list.grid(row=19, column=0, sticky="ew", pady=4)
+        self.date_list.bind("<Double-1>", lambda _e: self.open_date_from_list())
+
+        ttk.Label(left, text="목록", style="Panel.TLabel", font=("Malgun Gothic", 11, "bold")).grid(row=20, column=0, sticky="w", pady=(8, 0))
+        self.path_listbox = tk.Listbox(left, height=5, borderwidth=0, highlightthickness=1, highlightbackground=COLORS["line"], font=("Malgun Gothic", 9))
+        self.path_listbox.grid(row=21, column=0, sticky="ew", pady=4)
+        self.path_listbox.bind("<Double-1>", lambda _e: self.open_path_list())
+        self.list_name = ttk.Entry(left)
+        self.list_name.grid(row=22, column=0, sticky="ew")
+        list_buttons = ttk.Frame(left, style="Panel.TFrame")
+        list_buttons.grid(row=23, column=0, sticky="ew", pady=3)
+        ttk.Button(list_buttons, text="만들기", command=self.create_path_list).pack(side=tk.LEFT, expand=True, fill="x", padx=(0, 2))
+        ttk.Button(list_buttons, text="열기", command=self.open_path_list).pack(side=tk.LEFT, expand=True, fill="x", padx=2)
+        ttk.Button(list_buttons, text="삭제", command=self.delete_path_list).pack(side=tk.LEFT, expand=True, fill="x", padx=(2, 0))
+
+        ttk.Label(left, text="폴더", style="Panel.TLabel", font=("Malgun Gothic", 11, "bold")).grid(row=24, column=0, sticky="w", pady=(8, 0))
+        self.folder_listbox = tk.Listbox(left, height=5, borderwidth=0, highlightthickness=1, highlightbackground=COLORS["line"], font=("Malgun Gothic", 9))
+        self.folder_listbox.grid(row=25, column=0, sticky="ew", pady=4)
+        self.folder_listbox.bind("<Double-1>", lambda _e: self.open_folder())
+        self.folder_name = ttk.Entry(left)
+        self.folder_name.grid(row=26, column=0, sticky="ew")
+        folder_buttons = ttk.Frame(left, style="Panel.TFrame")
+        folder_buttons.grid(row=27, column=0, sticky="ew", pady=3)
+        ttk.Button(folder_buttons, text="만들기", command=self.create_folder).pack(side=tk.LEFT, expand=True, fill="x", padx=(0, 2))
+        ttk.Button(folder_buttons, text="열기", command=self.open_folder).pack(side=tk.LEFT, expand=True, fill="x", padx=2)
+        ttk.Button(folder_buttons, text="삭제", command=self.delete_folder).pack(side=tk.LEFT, expand=True, fill="x", padx=(2, 0))
 
         center.columnconfigure(0, weight=1)
         center.rowconfigure(4, weight=1)
@@ -369,7 +486,7 @@ class App(tk.Tk):
         self.priority_entry.insert(0, "우선순위")
         self.today_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(form, text="오늘", variable=self.today_var).grid(row=0, column=3, padx=(0, 6))
-        ttk.Button(form, text="추가", command=self.add_task).grid(row=0, column=4)
+        ttk.Button(form, text="추가", style="Primary.TButton", command=self.add_task).grid(row=0, column=4)
         self.title_entry.bind("<Return>", lambda _e: self.add_task())
 
         paste_bar = ttk.Frame(center)
@@ -382,7 +499,7 @@ class App(tk.Tk):
 
         toolbar = ttk.Frame(center)
         toolbar.grid(row=3, column=0, sticky="ew", pady=4)
-        for label, cmd in [("루트", self.go_root), ("열기", self.open_selected), ("수정", self.rename_selected), ("삭제", self.delete_selected), ("완료", self.toggle_done), ("중요", self.toggle_important), ("오늘", self.toggle_today), ("메모화", self.memoize_selected), ("할 일화", self.taskify_selected), ("다음 행동", self.next_action), ("위로 이동", self.move_to_parent)]:
+        for label, cmd in [("루트", self.go_root), ("열기", self.open_selected), ("수정", self.rename_selected), ("삭제", self.delete_selected), ("완료", self.toggle_done), ("중요", self.toggle_important), ("오늘", self.toggle_today), ("메모화", self.memoize_selected), ("할 일화", self.taskify_selected), ("다음 행동", self.next_action), ("목록에 추가", self.add_selected_to_path_list), ("목록에서 제거", self.remove_selected_from_current_list), ("위로 이동", self.move_to_parent)]:
             ttk.Button(toolbar, text=label, command=cmd).pack(side=tk.LEFT, padx=2)
 
         columns = ("kind", "priority", "today", "important", "children", "created")
@@ -402,9 +519,17 @@ class App(tk.Tk):
         self.tree.column("children", width=55, anchor="center")
         self.tree.column("created", width=130, anchor="center")
         self.tree.grid(row=4, column=0, sticky="nsew")
+        self.tree.tag_configure("memo", background=COLORS["memo"])
+        self.tree.tag_configure("task", background=COLORS["task"])
+        self.tree.tag_configure("done", background=COLORS["done"])
+        self.tree.tag_configure("folder", background=COLORS["folder"])
+        self.tree.tag_configure("today", background=COLORS["primary_soft"])
+        self.tree.tag_configure("important", background=COLORS["important"])
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
         self.tree.bind("<Double-1>", lambda _e: self.open_selected())
         self.tree.bind("<Button-3>", lambda _e: self.toggle_done())
+        self.tree.bind("<ButtonPress-1>", self.on_drag_start)
+        self.tree.bind("<ButtonRelease-1>", self.on_drag_drop)
         yscroll = ttk.Scrollbar(center, orient="vertical", command=self.tree.yview)
         yscroll.grid(row=4, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=yscroll.set)
@@ -426,6 +551,7 @@ class App(tk.Tk):
     def refresh_all(self):
         self.sync_form_defaults()
         self.refresh_path()
+        self.refresh_side_lists()
         self.refresh_tree()
         self.refresh_detail()
 
@@ -434,6 +560,16 @@ class App(tk.Tk):
         self.kind_combo.set("메모" if kind == "memo" else "할 일")
 
     def refresh_path(self):
+        if self.view_mode.get() == "pathList" and self.current_path_list_id:
+            item = self.store.path_list(self.current_path_list_id)
+            self.path_label.config(text=f"저장 목록 > {item.get('title') if item else '목록 없음'}")
+            return
+        if self.view_mode.get() == "date" and self.current_date_key:
+            self.path_label.config(text=f"작성일 > {self.current_date_key}")
+            return
+        if self.view_mode.get() == "completed-date" and self.current_date_key:
+            self.path_label.config(text=f"완료일 > {self.current_date_key}")
+            return
         parts = []
         cur = self.store.node(self.current_parent)
         while cur:
@@ -441,6 +577,29 @@ class App(tk.Tk):
             pid = cur.get("parentId")
             cur = self.store.node(pid) if pid else None
         self.path_label.config(text=" > ".join(reversed(parts)) or "루트")
+
+    def refresh_side_lists(self):
+        self.date_list.delete(0, tk.END)
+        created = defaultdict(int)
+        completed = defaultdict(int)
+        for node in self.store.all_nodes():
+            created[(node.get("createdAt") or "")[:10] or "날짜 없음"] += 1
+            if node.get("completedAt"):
+                completed[(node.get("completedAt") or "")[:10] or "날짜 없음"] += 1
+        for key in sorted(created.keys(), reverse=True):
+            self.date_list.insert(tk.END, f"작성 {key} ({created[key]})")
+        for key in sorted(completed.keys(), reverse=True):
+            self.date_list.insert(tk.END, f"완료 {key} ({completed[key]})")
+
+        self.path_listbox.delete(0, tk.END)
+        for item in self.store.path_lists:
+            self.path_listbox.insert(tk.END, f"{item.get('title')} ({len(item.get('taskIds', []))})")
+
+        self.folder_listbox.delete(0, tk.END)
+        self.folder_ids = []
+        for node in self.store.folders():
+            self.folder_ids.append(node["id"])
+            self.folder_listbox.insert(tk.END, node.get("title", "폴더"))
 
     def row_visible(self, node):
         if not node or node["id"] == ROOT_ID:
@@ -467,6 +626,28 @@ class App(tk.Tk):
     def refresh_tree(self):
         self.tree.delete(*self.tree.get_children())
         mode = self.view_mode.get()
+        if mode == "pathList" and self.current_path_list_id:
+            item = self.store.path_list(self.current_path_list_id)
+            ids = item.get("taskIds", []) if item else []
+            for node_id in sorted(ids, key=self.store.sort_key):
+                node = self.store.node(node_id)
+                if node and self.row_visible(node):
+                    self.insert_node("", node_id, flat=True)
+            return
+        if mode == "date" and self.current_date_key:
+            ids = [n["id"] for n in self.store.all_nodes() if (n.get("createdAt") or "")[:10] == self.current_date_key]
+            for node_id in sorted(ids, key=self.store.sort_key):
+                node = self.store.node(node_id)
+                if node and self.row_visible(node):
+                    self.insert_node("", node_id, flat=True)
+            return
+        if mode == "completed-date" and self.current_date_key:
+            ids = [n["id"] for n in self.store.all_nodes() if (n.get("completedAt") or "")[:10] == self.current_date_key]
+            for node_id in sorted(ids, key=self.store.sort_key):
+                node = self.store.node(node_id)
+                if node and self.row_visible(node):
+                    self.insert_node("", node_id, flat=True)
+            return
         if mode in ("today", "important", "done") or self.search_text.get().strip():
             roots = [n["id"] for n in self.store.nodes.values() if self.row_visible(n)]
             roots.sort(key=self.store.sort_key)
@@ -510,7 +691,7 @@ class App(tk.Tk):
             return
         created = node.get("createdAt", "")[:16].replace("T", " ")
         values = (
-            "메모" if node.get("kind") == "memo" else "할 일",
+            "폴더" if node.get("isCustomFolder") else ("메모" if node.get("kind") == "memo" else "할 일"),
             "" if node.get("priority") is None else node.get("priority"),
             "Y" if node.get("isToday") else "",
             "Y" if node.get("isImportant") else "",
@@ -520,7 +701,20 @@ class App(tk.Tk):
         text = node.get("title", "이름 없음")
         if node.get("completed"):
             text = "✓ " + text
-        iid = self.tree.insert(parent_iid, "end", iid=node_id if not self.tree.exists(node_id) else new_id("view"), text=text, values=values, open=False)
+        tags = []
+        if node.get("isCustomFolder"):
+            tags.append("folder")
+        elif node.get("completed"):
+            tags.append("done")
+        elif node.get("kind") == "memo":
+            tags.append("memo")
+        elif node.get("isToday"):
+            tags.append("today")
+        elif node.get("isImportant"):
+            tags.append("important")
+        else:
+            tags.append("task")
+        iid = self.tree.insert(parent_iid, "end", iid=node_id if not self.tree.exists(node_id) else new_id("view"), text=text, values=values, open=False, tags=tuple(tags))
         if not flat:
             for child_id in self.store.children(node_id):
                 child = self.store.node(child_id)
@@ -578,6 +772,9 @@ class App(tk.Tk):
 
     def go_root(self):
         self.current_parent = ROOT_ID
+        self.current_path_list_id = None
+        self.current_date_key = None
+        self.view_mode.set("all")
         self.selected_id = None
         self.refresh_all()
 
@@ -601,7 +798,7 @@ class App(tk.Tk):
 
     def toggle_done(self):
         node = self.selected_node()
-        if not node or node.get("kind") == "memo":
+        if not node or node.get("kind") == "memo" or node.get("isCustomFolder"):
             return
         node["completed"] = not node.get("completed")
         node["completedAt"] = now_iso() if node["completed"] else None
@@ -609,14 +806,14 @@ class App(tk.Tk):
 
     def toggle_today(self):
         node = self.selected_node()
-        if not node or node.get("kind") == "memo":
+        if not node or node.get("kind") == "memo" or node.get("isCustomFolder"):
             return
         node["isToday"] = not node.get("isToday")
         self.save_and_refresh()
 
     def toggle_important(self):
         node = self.selected_node()
-        if not node or node.get("kind") == "memo":
+        if not node or node.get("kind") == "memo" or node.get("isCustomFolder"):
             return
         node["isImportant"] = not node.get("isImportant")
         self.save_and_refresh()
@@ -635,7 +832,7 @@ class App(tk.Tk):
 
     def next_action(self):
         node = self.selected_node()
-        if not node:
+        if not node or node.get("isCustomFolder"):
             return
         node["kind"] = "task"
         node["completed"] = False
@@ -717,6 +914,122 @@ class App(tk.Tk):
             self.refresh_all()
         except Exception as e:
             messagebox.showerror(APP_TITLE, str(e))
+
+    def create_path_list(self):
+        title = self.list_name.get().strip()
+        if not title:
+            return
+        self.store.add_path_list(title)
+        self.list_name.delete(0, tk.END)
+        self.save_and_refresh()
+
+    def selected_path_list_id(self):
+        idx = self.path_listbox.curselection()
+        if not idx:
+            return None
+        return self.store.path_lists[idx[0]].get("id") if idx[0] < len(self.store.path_lists) else None
+
+    def open_path_list(self):
+        list_id = self.selected_path_list_id()
+        if not list_id:
+            return
+        self.current_path_list_id = list_id
+        self.current_date_key = None
+        self.view_mode.set("pathList")
+        self.refresh_all()
+
+    def delete_path_list(self):
+        list_id = self.selected_path_list_id()
+        if not list_id:
+            return
+        if messagebox.askyesno(APP_TITLE, "선택한 목록을 삭제할까요? 실제 작업은 삭제되지 않습니다."):
+            self.store.state["pathLists"] = [x for x in self.store.path_lists if x.get("id") != list_id]
+            if self.current_path_list_id == list_id:
+                self.current_path_list_id = None
+                self.view_mode.set("all")
+            self.save_and_refresh()
+
+    def add_selected_to_path_list(self):
+        node = self.selected_node()
+        list_id = self.selected_path_list_id()
+        if not node or not list_id:
+            messagebox.showinfo(APP_TITLE, "작업과 왼쪽 목록을 선택하세요.")
+            return
+        item = self.store.path_list(list_id)
+        if item and node["id"] not in item["taskIds"]:
+            item["taskIds"].append(node["id"])
+            self.save_and_refresh()
+
+    def remove_selected_from_current_list(self):
+        node = self.selected_node()
+        if not node or self.view_mode.get() != "pathList" or not self.current_path_list_id:
+            return
+        item = self.store.path_list(self.current_path_list_id)
+        if item:
+            item["taskIds"] = [x for x in item.get("taskIds", []) if x != node["id"]]
+            self.save_and_refresh()
+
+    def create_folder(self):
+        title = self.folder_name.get().strip()
+        if not title:
+            return
+        self.store.add_folder(self.current_parent, title)
+        self.folder_name.delete(0, tk.END)
+        self.save_and_refresh()
+
+    def selected_folder_id(self):
+        idx = self.folder_listbox.curselection()
+        if not idx:
+            return None
+        return self.folder_ids[idx[0]] if idx[0] < len(self.folder_ids) else None
+
+    def open_folder(self):
+        folder_id = self.selected_folder_id()
+        if folder_id:
+            self.current_parent = folder_id
+            self.current_path_list_id = None
+            self.current_date_key = None
+            self.view_mode.set("all")
+            self.refresh_all()
+
+    def delete_folder(self):
+        folder_id = self.selected_folder_id()
+        if folder_id and messagebox.askyesno(APP_TITLE, "선택한 폴더와 안의 작업을 모두 삭제할까요?"):
+            self.store.delete_subtree(folder_id)
+            self.save_and_refresh()
+
+    def open_date_from_list(self):
+        idx = self.date_list.curselection()
+        if not idx:
+            return
+        text = self.date_list.get(idx[0])
+        if text.startswith("작성 "):
+            self.current_date_key = text.split(" ", 1)[1].split(" (")[0]
+            self.view_mode.set("date")
+        elif text.startswith("완료 "):
+            self.current_date_key = text.split(" ", 1)[1].split(" (")[0]
+            self.view_mode.set("completed-date")
+        else:
+            return
+        self.current_path_list_id = None
+        self.refresh_all()
+
+    def on_drag_start(self, event):
+        iid = self.tree.identify_row(event.y)
+        self.dragging_id = iid if iid in self.store.nodes else None
+
+    def on_drag_drop(self, event):
+        if not self.dragging_id:
+            return
+        target = self.tree.identify_row(event.y)
+        source = self.dragging_id
+        self.dragging_id = None
+        if target and target in self.store.nodes and target != source:
+            if self.store.move_node(source, target):
+                self.save_and_refresh()
+        elif self.view_mode.get() == "all":
+            if self.store.move_node(source, self.current_parent):
+                self.save_and_refresh()
 
     def save_json(self):
         path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
