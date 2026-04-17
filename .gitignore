@@ -1,4 +1,6 @@
-﻿node_modules/
-dist/
+﻿__pycache__/
+.venv/
+build/
+*.spec
 *.log
 .DS_Store

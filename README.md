@@ -1,56 +1,38 @@
 ﻿# 작업 큐 탐색기
 
-작업을 파일 탐색기처럼 계층으로 관리하는 개인용 큐/메모 데스크톱 앱입니다.
+Windows에서 바로 실행하는 개인용 작업 큐/메모 프로그램입니다.
 
-## 현재 권장 실행 방식
+이전 Electron 버전은 제거했고, 현재 기본 버전은 `Python + Tkinter`로 만든 네이티브 GUI입니다.
 
-이 저장소에는 실행 파일을 직접 올리지 않습니다. GitHub에 큰 exe를 커밋하는 방식은 잘못된 방식이라 제거했습니다.
+## 바로 실행
 
-개발 환경에서는 아래처럼 실행합니다.
-
-```powershell
-npm install
-npm start
-```
-
-## Windows 실행 파일 만들기
-
-아래 명령을 실행하면 설치 프로그램이나 portable 패키지가 아니라, 앱 폴더 안의 실제 실행 파일이 생성됩니다.
-
-```powershell
-npm install
-npm run dist
-```
-
-생성 위치:
+아래 파일을 더블클릭하세요.
 
 ```text
-dist/win-unpacked/TaskExplorer.exe
+dist/TaskExplorer.exe
 ```
 
-이 `TaskExplorer.exe`가 실제 실행 파일입니다. 단, Electron 앱 특성상 같은 폴더의 `resources`, `locales`, dll 파일들이 같이 있어야 합니다. `TaskExplorer.exe` 파일 하나만 다른 곳으로 복사하면 실행되지 않을 수 있습니다.
+이 파일은 PyInstaller `--onefile --windowed`로 만든 단일 exe입니다. Electron처럼 `resources`, `dll`, `locales` 폴더를 같이 들고 다니는 방식이 아닙니다.
 
 ## 주요 기능
 
-- 작업을 폴더처럼 계층 구조로 관리
-- 작업 이름 수정, 삭제, 복사
-- 드래그로 순서 변경 및 다른 작업 아래로 이동
-- 우선순위 지정 및 낮은 숫자 우선 정렬
-- 오늘 할 일, 중요, 4분할 보기
+- 작업을 트리 구조로 관리
 - 할 일과 메모 구분
-- 현재 디렉토리 기준 `전체 보기 / 할 일만 / 메모만` 필터
-- 메모화 시 하위 항목까지 메모로 전환
-- 메모 안에서 새 항목을 만들면 기본값이 메모로 설정
-- `다음 행동`으로 메모/작업을 오늘 할 일로 올리기
-- 작업별 메모 입력
-- 작성일/완료일 기준 보기
-- 목록/폴더별 보기
-- 작업 구조 txt 내보내기/불러오기
-- 붙여넣은 트리 구조를 현재 디렉토리에 바로 추가
+- 현재 위치 기준 `전체 보기 / 할 일만 / 메모만` 필터
+- 오늘 할 일, 중요, 완료 보기
+- 4분할 보기
+- 작업 추가, 이름 수정, 삭제
+- 완료, 중요, 오늘 할 일 토글
+- 선택 항목 하위 전체 메모화
+- 메모를 다음 행동으로 전환
+- 작업별 메모 작성
+- JSON 상태 저장/불러오기
+- txt 트리 내보내기
+- 트리 텍스트 붙여넣기 추가
 
 ## 트리 붙여넣기 예시
 
-앱 상단의 `트리 구조 붙여넣기` 입력창에 아래처럼 붙여넣고 `붙여넣기 추가`를 누르면 현재 디렉토리에 기본 `할 일`로 추가됩니다.
+프로그램에서 `트리 붙여넣기`를 누르고 아래처럼 입력한 뒤 `붙여넣기 추가`를 누르면 현재 위치에 기본 할 일로 추가됩니다.
 
 ```text
 소켓 객체
@@ -60,36 +42,48 @@ dist/win-unpacked/TaskExplorer.exe
 └── 옵션
 ```
 
+## 데이터 저장
+
+프로그램은 실행 파일이 있는 폴더의 아래 파일을 자동으로 읽고 저장합니다.
+
+```text
+task-explorer-state.json
+```
+
+기존 HTML 버전에서 저장한 JSON도 `JSON 불러오기`로 가져올 수 있습니다.
+
+## 개발 실행
+
+Python이 있으면 소스 상태로 실행할 수 있습니다.
+
+```powershell
+python task_explorer_native.py
+```
+
+## exe 다시 만들기
+
+Python 3.14 기준으로 확인했습니다.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install pyinstaller
+.\.venv\Scripts\python.exe -m PyInstaller --onefile --windowed --name TaskExplorer task_explorer_native.py
+```
+
 결과:
 
 ```text
-소켓 객체
-  상태
-  주소 정보
-  버퍼
-  옵션
+dist/TaskExplorer.exe
 ```
-
-## 데이터 저장
-
-앱은 실행 환경의 localStorage에 자동 저장합니다.
-
-중요한 상태는 앱 안의 버튼으로 JSON 파일로 따로 보관하는 것을 권장합니다.
-
-- `폴더에 저장`: 현재 상태를 JSON으로 내보냅니다.
-- `폴더에서 불러오기`: JSON 상태 파일 또는 트리 txt를 불러옵니다.
-
-브라우저 버전과 Electron 버전은 저장소가 서로 다릅니다. 기존 데이터를 Electron 버전으로 옮기려면 `폴더에서 불러오기`로 JSON 파일을 선택하세요.
 
 ## 파일 구성
 
 ```text
-main.js             Electron 실행 진입점
-package.json        실행/빌드 설정
-package-lock.json   npm 의존성 잠금 파일
-task_explorer.html  앱 본체 UI와 로직
+dist/TaskExplorer.exe       바로 실행하는 단일 exe
+task_explorer_native.py     네이티브 앱 소스
+legacy/task_explorer.html   이전 HTML 버전 백업
 ```
 
-## 배포 메모
+## 주의
 
-사용자에게 실행 파일을 배포하려면 `dist/win-unpacked` 폴더 전체를 압축해서 전달하는 방식이 현재 가장 정직합니다. exe 한 파일만 저장소에 커밋하지 않습니다.
+개인 작업 데이터 JSON은 저장소에 포함하지 않습니다. 중요한 데이터는 프로그램 안의 `JSON 저장`으로 따로 백업하세요.
