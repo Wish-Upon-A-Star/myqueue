@@ -1,0 +1,30 @@
+{
+  "name": "task-explorer-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "작업 큐 탐색기 데스크톱 앱",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "local.task-explorer",
+    "productName": "TaskExplorer",
+    "files": [
+      "main.js",
+      "task_explorer.html",
+      "README.md"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.6.0",
+    "electron-builder": "^26.0.12"
+  },
+  "author": "local"
+}

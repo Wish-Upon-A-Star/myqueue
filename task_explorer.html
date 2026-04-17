@@ -84,6 +84,61 @@
       color: #1f4ebf;
     }
 
+    .top-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .top-tabs button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-weight: 800;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .top-tabs button.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: #1f4ebf;
+    }
+
+    .kind-filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin: 0 0 12px 0;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .kind-filter-tabs button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .kind-filter-tabs button.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: #1f4ebf;
+    }
+
     .side-section-title {
       display: inline-block;
       font-size: 12px;
@@ -230,6 +285,14 @@
   align-items: start;
 }
 
+.matrix-mode .content-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.matrix-mode .memo-panel {
+  display: none;
+}
+
 .memo-panel {
   width: 100%;
   max-width: none;
@@ -308,9 +371,13 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 1fr 130px 140px auto;
+      grid-template-columns: minmax(0, 1fr) 96px 130px 140px auto;
       gap: 10px;
       margin-top: 10px;
+    }
+
+    .form-grid > * {
+      min-width: 0;
     }
 
     .form-grid input,
@@ -352,6 +419,34 @@
       padding: 0;
       margin: 0;
       accent-color: var(--primary);
+    }
+
+    .kind-select {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+      font-family: inherit;
+    }
+
+    .task-kind-badge {
+      flex: 0 0 auto;
+      border: 1px solid #c9d7ec;
+      background: #f7faff;
+      color: #294572;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .task-kind-badge.memo {
+      border-color: #e3d2aa;
+      background: #fff9eb;
+      color: #7a5415;
     }
 
     button {
@@ -415,6 +510,32 @@
       flex-wrap: wrap;
     }
 
+    .paste-tree-box {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .paste-tree-input {
+      width: 100%;
+      min-height: 84px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      resize: vertical;
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .paste-tree-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+    }
+
     .task-list {
       list-style: none;
       margin: 0;
@@ -424,6 +545,166 @@
       max-height: 680px;
       overflow-y: auto;
       overflow-x: hidden;
+    }
+
+    .matrix-view {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      height: clamp(520px, calc(100vh - 300px), 820px);
+      overflow-y: hidden;
+      overflow-x: hidden;
+      padding-right: 4px;
+    }
+
+    .matrix-view.open {
+      display: grid;
+    }
+
+    .matrix-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+      min-width: 0;
+      min-height: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .matrix-card.primary {
+      border-color: #9bbaf4;
+      background: #f4f8ff;
+    }
+
+    .matrix-card.important-only {
+      border-color: #b9d7a8;
+      background: #f7fbf3;
+    }
+
+    .matrix-card.urgent-only {
+      border-color: #f1c99f;
+      background: #fff8ef;
+    }
+
+    .matrix-card.quiet {
+      border-color: #d2dae8;
+      background: #fafcff;
+    }
+
+    .matrix-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .matrix-title {
+      font-weight: 800;
+      font-size: 14px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .matrix-count {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .matrix-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      min-width: 0;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 2px;
+    }
+
+    .matrix-list .task-item {
+      padding: 12px 10px;
+      min-height: 54px;
+      margin-bottom: 8px;
+    }
+
+    .matrix-list .task-title {
+      font-size: 13px;
+    }
+
+    .matrix-list .task-meta {
+      max-width: 42%;
+    }
+
+    .matrix-empty {
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 14px 10px;
+      text-align: center;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .matrix-more {
+      width: 100%;
+      margin-top: 4px;
+      border-radius: 8px;
+    }
+
+    .next-actions {
+      margin: -2px 0 8px 28px;
+      padding: 8px 10px;
+      border-left: 2px solid #d6e1f3;
+      background: rgba(255, 255, 255, 0.58);
+      border-radius: 0 8px 8px 0;
+    }
+
+    .next-actions-title {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .next-action-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      margin-top: 4px;
+    }
+
+    .next-action-open {
+      min-width: 0;
+      flex: 1 1 auto;
+      border: 0;
+      background: transparent;
+      color: #21385f;
+      padding: 3px 0;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .next-action-done {
+      border: 1px solid #c9d7ec;
+      background: #f7faff;
+      color: #294572;
+      border-radius: 8px;
+      padding: 4px 7px;
+      font-size: 11px;
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
 
     .task-item {
@@ -442,6 +723,10 @@
       min-height: 64px;
       max-height: none;
       overflow: visible;
+    }
+
+    .matrix-list .task-item {
+      overflow: hidden;
     }
 
     .task-item:hover {
@@ -517,24 +802,29 @@
       align-items: center;
       flex-wrap: nowrap;
       justify-content: flex-end;
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
+      position: static;
+      transform: none;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+      display: none;
       overflow-x: auto;
       overflow-y: hidden;
       scrollbar-width: thin;
       -ms-overflow-style: none;
-      width: max-content;
-      max-width: calc(100% - 24px);
+      width: auto;
+      max-width: min(58%, 720px);
+      margin-left: auto;
       transition: opacity 0.15s ease;
+    }
+
+    .matrix-list .task-actions {
+      max-width: min(62%, 520px);
     }
 
     .task-item:hover .task-actions,
     .task-item:focus-within .task-actions {
+      display: flex;
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
@@ -618,9 +908,12 @@
         grid-template-columns: 1fr;
       }
 
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
       .side-tabs {
-        flex-direction: row;
-        flex-wrap: wrap;
+        position: static;
       }
 
       .form-grid {
@@ -628,12 +921,45 @@
       }
 
       .task-actions {
-        max-width: none;
+        position: static;
+        transform: none;
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        margin-top: 8px;
+        flex-wrap: wrap;
         justify-content: flex-start;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .task-item {
+        display: block;
+        overflow: hidden;
+      }
+
+      .task-main {
+        padding-right: 0;
+        align-items: flex-start;
+      }
+
+      .task-meta {
+        display: none;
+      }
+
+      .matrix-view {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        height: auto;
+        overflow: visible;
       }
 
       .task-title {
-        min-width: 180px;
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.35;
       }
 
     .custom-tab-list {
@@ -664,6 +990,16 @@
 
     }
 
+    @media (max-width: 1280px) {
+      .form-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .form-grid .btn-add {
+        grid-column: span 2;
+      }
+    }
+
     @media (max-width: 920px) {
       :root {
         --sidebar-width: 132px;
@@ -681,6 +1017,25 @@
       .task-meta {
         font-size: 10px;
       }
+
+      .matrix-list .task-meta {
+        display: none;
+      }
+    }
+
+    @media (max-width: 800px) {
+      .workspace,
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .matrix-view {
+        grid-template-columns: 1fr;
+      }
+
+      .matrix-list .task-title {
+        min-width: 0;
+      }
     }
   </style>
 </head>
@@ -691,14 +1046,18 @@
 
     <div class="workspace">
       <div class="side-tabs">
-        <button id="tab-all" type="button" class="active">전체</button>
-        <button id="tab-today" type="button">오늘 할일</button>
-        <button id="tab-important" type="button">⭐ 중요</button>
         <div class="custom-tab-create" style="margin: 10px 0 0;">
           <button id="toggle-created-date" class="date-section-toggle" type="button" aria-expanded="false">날짜별 보기</button>
         </div>
         <div id="created-date-section" class="date-section">
           <div id="created-date-list" class="custom-tab-list"></div>
+        </div>
+
+        <div class="custom-tab-create" style="margin: 10px 0 0;">
+          <button id="toggle-completed-date" class="date-section-toggle" type="button" aria-expanded="false">완료일별 보기</button>
+        </div>
+        <div id="completed-date-section" class="date-section">
+          <div id="completed-date-list" class="custom-tab-list"></div>
         </div>
 
         <div class="custom-tab-create" style="margin: 10px 0 0;">
@@ -725,6 +1084,17 @@
       </div>
 
       <div class="content">
+        <div class="top-tabs">
+          <button id="tab-all" type="button" class="active">전체</button>
+          <button id="tab-today" type="button">오늘 할일</button>
+          <button id="tab-important" type="button">중요</button>
+          <button id="tab-matrix" type="button">4분할</button>
+        </div>
+        <div class="kind-filter-tabs">
+          <button id="kind-filter-all" type="button" class="active">전체 보기</button>
+          <button id="kind-filter-task" type="button">할 일만</button>
+          <button id="kind-filter-memo" type="button">메모만</button>
+        </div>
         <div class="content-grid">
           <div>
             <div class="panel">
@@ -735,6 +1105,10 @@
 
               <form id="add-form" class="form-grid">
                 <input id="task-input" type="text" placeholder="새 작업 입력" autocomplete="off" />
+                <select id="task-kind" class="kind-select" aria-label="종류 선택">
+                  <option value="task">할 일</option>
+                  <option value="memo">메모</option>
+                </select>
                 <input id="task-priority" type="number" placeholder="우선순위 (낮을수록 위)" min="-99999" />
                 <label class="inline-check">
                   <input id="task-today-toggle" type="checkbox" />
@@ -744,18 +1118,24 @@
               </form>
 
               <div class="storage-row">
-                <input id="import-file" type="file" accept="application/json" style="display:none" />
+                <input id="import-file" type="file" accept="application/json,.txt,text/plain" style="display:none" />
                 <button id="load-state" class="btn-secondary" type="button">폴더에서 불러오기</button>
                 <button id="save-state" class="btn-secondary" type="button">폴더에 저장</button>
+                <button id="memoize-current-tree" class="btn-secondary" type="button">현재 하위 메모화</button>
                 <button id="export-tree" class="btn-secondary" type="button">작업 구조 내보내기</button>
                 <button id="go-root" class="btn-secondary" type="button">루트로 이동</button>
                 <button id="clear-today" class="btn-danger" type="button" style="display:none;">오늘 할일 비우기</button>
+              </div>
+              <div class="paste-tree-box">
+                <textarea id="paste-tree-input" class="paste-tree-input" placeholder="트리 구조 붙여넣기&#10;예:&#10;소켓 객체&#10;├── 상태&#10;├── 주소 정보&#10;├── 버퍼&#10;└── 옵션"></textarea>
+                <button id="paste-tree-add" class="btn-secondary" type="button">붙여넣기 추가</button>
               </div>
             </div>
 
             <div class="panel">
               <div class="path-title">현재 루트 기준 하위 작업 목록</div>
               <ul id="task-list" class="task-list"></ul>
+              <div id="matrix-view" class="matrix-view"></div>
               <div id="empty-state" class="empty">작업이 없습니다.</div>
             </div>
           </div>
@@ -781,15 +1161,19 @@
     let state = loadState();
     let currentParentId = ROOT_ID;
     let currentViewMode = 'all';
+    let currentKindFilter = 'all';
     let draggingTaskId = null;
     let draggingCustomTabId = null;
     let draggingSavedListId = null;
     let memoTargetTaskId = null;
     let currentPathListId = null;
     let currentDateFilterKey = null;
+    let currentCompletedDateFilterKey = null;
     let isDateSectionOpen = false;
+    let isCompletedDateSectionOpen = false;
     let isFolderViewOpen = false;
     let isListViewOpen = false;
+    let matrixShowNeither = false;
     let saveTimer = null;
     let memoSaveTimer = null;
     const childrenCache = new Map();
@@ -799,13 +1183,18 @@
     const modeHint = document.getElementById('mode-hint');
     const addForm = document.getElementById('add-form');
     const taskInput = document.getElementById('task-input');
+    const taskKindInput = document.getElementById('task-kind');
     const taskPriorityInput = document.getElementById('task-priority');
     const taskTodayInput = document.getElementById('task-today-toggle');
     const taskList = document.getElementById('task-list');
+    const matrixView = document.getElementById('matrix-view');
     const emptyState = document.getElementById('empty-state');
     const createdDateList = document.getElementById('created-date-list');
     const createdDateToggleBtn = document.getElementById('toggle-created-date');
     const createdDateSection = document.getElementById('created-date-section');
+    const completedDateList = document.getElementById('completed-date-list');
+    const completedDateToggleBtn = document.getElementById('toggle-completed-date');
+    const completedDateSection = document.getElementById('completed-date-section');
     const folderViewToggleBtn = document.getElementById('toggle-folder-view');
     const folderViewSection = document.getElementById('folder-view-section');
     const pathViewToggleBtn = document.getElementById('toggle-list-view');
@@ -813,11 +1202,18 @@
     const goRootBtn = document.getElementById('go-root');
     const saveStateBtn = document.getElementById('save-state');
     const loadStateBtn = document.getElementById('load-state');
+    const memoizeCurrentTreeBtn = document.getElementById('memoize-current-tree');
     const exportTreeBtn = document.getElementById('export-tree');
     const importFileInput = document.getElementById('import-file');
+    const pasteTreeInput = document.getElementById('paste-tree-input');
+    const pasteTreeAddBtn = document.getElementById('paste-tree-add');
     const tabAll = document.getElementById('tab-all');
     const tabToday = document.getElementById('tab-today');
     const tabImportant = document.getElementById('tab-important');
+    const tabMatrix = document.getElementById('tab-matrix');
+    const kindFilterAllBtn = document.getElementById('kind-filter-all');
+    const kindFilterTaskBtn = document.getElementById('kind-filter-task');
+    const kindFilterMemoBtn = document.getElementById('kind-filter-memo');
     const clearTodayBtn = document.getElementById('clear-today');
     const customTabNameInput = document.getElementById('custom-tab-name');
     const addCustomTabBtn = document.getElementById('add-custom-tab');
@@ -1177,6 +1573,7 @@
           isImportant: false,
           memo: '',
           priority: null,
+          completedAt: null,
           createdOrder,
           createdAt: getNowIsoString(),
           children: [],
@@ -1232,6 +1629,19 @@
       pathList.taskIds.push(normalizedTaskId);
       saveState();
       if (currentViewMode === 'pathList' && currentPathListId === pathList.id) {
+        render();
+      }
+    }
+
+    function removeTaskFromPathList(taskId, pathListId) {
+      const pathList = getPathListById(pathListId);
+      if (!pathList || !Array.isArray(pathList.taskIds)) return;
+      const normalizedTaskId = String(taskId);
+      const before = pathList.taskIds.length;
+      pathList.taskIds = pathList.taskIds.filter((id) => String(id) !== normalizedTaskId);
+      if (before === pathList.taskIds.length) return;
+      saveState();
+      if (currentViewMode === 'pathList' && String(currentPathListId) === String(pathList.id)) {
         render();
       }
     }
@@ -1314,7 +1724,9 @@
               completed: false,
               isToday: false,
               isImportant: false,
+              kind: 'task',
               priority: null,
+              completedAt: null,
               createdOrder: 0,
               children: []
             }
@@ -1342,10 +1754,12 @@
             completed: false,
             isToday: false,
             isImportant: false,
+            kind: 'task',
             memo: '',
             priority: null,
             createdOrder: tab.createdOrder,
             createdAt: tab.createdAt || getNowIsoString(),
+            completedAt: null,
             children: [],
             isCustomFolder: true
           };
@@ -1371,31 +1785,47 @@
         node.id = String(node.id);
 
         if (!Array.isArray(node.children)) node.children = [];
-        if (typeof node.completed !== 'boolean') node.completed = false;
-        if (typeof node.isToday !== 'boolean') node.isToday = false;
-        if (!Object.prototype.hasOwnProperty.call(node, 'isImportant')) node.isImportant = false;
-        if (!Object.prototype.hasOwnProperty.call(node, 'memo') || typeof node.memo !== 'string') node.memo = '';
-        if (!Object.prototype.hasOwnProperty.call(node, 'priority')) node.priority = null;
-        if (!Object.prototype.hasOwnProperty.call(node, 'isCustomFolder')) node.isCustomFolder = false;
-        if (!Object.prototype.hasOwnProperty.call(node, 'createdAt') || Number.isNaN(new Date(node.createdAt).getTime())) {
-          node.createdAt = getNowIsoString();
-        }
-        if (!Number.isFinite(node.createdOrder)) {
-          node.createdOrder = state.nextOrder;
-          state.nextOrder += 1;
+      if (typeof node.completed !== 'boolean') node.completed = false;
+      if (typeof node.isToday !== 'boolean') node.isToday = false;
+      if (!Object.prototype.hasOwnProperty.call(node, 'isImportant')) node.isImportant = false;
+      if (!Object.prototype.hasOwnProperty.call(node, 'memo') || typeof node.memo !== 'string') node.memo = '';
+      if (!Object.prototype.hasOwnProperty.call(node, 'priority')) node.priority = null;
+          if (!Object.prototype.hasOwnProperty.call(node, 'isCustomFolder')) node.isCustomFolder = false;
+      if (node.isCustomFolder || node.id === ROOT_ID) {
+        node.kind = 'task';
+      } else if (node.kind !== 'memo' && node.kind !== 'task') {
+        node.kind = 'task';
+      }
+      if (node.kind === 'memo') {
+        node.completed = false;
+        node.completedAt = null;
+        node.isToday = false;
+        node.isImportant = false;
+      }
+      if (!Object.prototype.hasOwnProperty.call(node, 'createdAt') || Number.isNaN(new Date(node.createdAt).getTime())) {
+        node.createdAt = getNowIsoString();
+      }
+      if (!Object.prototype.hasOwnProperty.call(node, 'completedAt') || (node.completed && Number.isNaN(new Date(node.completedAt).getTime()))) {
+        node.completedAt = node.completed ? getNowIsoString() : null;
+      }
+      if (!Number.isFinite(node.createdOrder)) {
+        node.createdOrder = state.nextOrder;
+        state.nextOrder += 1;
         }
       }
 
       if (!state.nodes[ROOT_ID]) {
-        state.nodes[ROOT_ID] = {
+      state.nodes[ROOT_ID] = {
           id: ROOT_ID,
           title: '루트',
           parentId: null,
           completed: false,
           isToday: false,
           isImportant: false,
+          kind: 'task',
           memo: '',
           priority: null,
+          completedAt: null,
           createdAt: getNowIsoString(),
           createdOrder: 0,
           children: []
@@ -1404,8 +1834,10 @@
         state.nodes[ROOT_ID].parentId = null;
         state.nodes[ROOT_ID].isToday = false;
         state.nodes[ROOT_ID].isImportant = false;
+        state.nodes[ROOT_ID].kind = 'task';
         state.nodes[ROOT_ID].priority = null;
         state.nodes[ROOT_ID].completed = false;
+        state.nodes[ROOT_ID].completedAt = null;
         if (!Object.prototype.hasOwnProperty.call(state.nodes[ROOT_ID], 'createdAt') || Number.isNaN(new Date(state.nodes[ROOT_ID].createdAt).getTime())) {
           state.nodes[ROOT_ID].createdAt = getNowIsoString();
         }
@@ -1594,12 +2026,137 @@
       URL.revokeObjectURL(url);
     }
 
+    function parseTaskTreeText(raw, options = {}) {
+      if (!raw) return [];
+      const lines = String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      const parsedItems = [];
+      const keepRoot = Boolean(options.keepRoot);
+
+      const parseTreeDepth = (prefix) => {
+        if (!prefix) return 0;
+        const normalized = prefix.replace(/\t/g, '    ');
+        let depth = 0;
+        let cursor = 0;
+        while (cursor + 3 < normalized.length) {
+          if (normalized.startsWith('│   ', cursor) || normalized.startsWith('    ', cursor)) {
+            depth += 1;
+            cursor += 4;
+            continue;
+          }
+          break;
+        }
+        return depth;
+      };
+
+      const addItem = (title, depth) => {
+        const trimmed = sanitizeTaskTitle(title);
+        if (!trimmed) return;
+        parsedItems.push({ title: trimmed, depth });
+      };
+
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i];
+        const trimmedLine = String(line).trimEnd();
+        if (!trimmedLine.trim()) continue;
+
+        if (trimmedLine.includes('루트의 하위 작업이 없습니다.')) continue;
+
+        const treeConnectorMatch = trimmedLine.match(/^(?<prefix>[\s│]*)(?<connector>├──|└──)\s+(?<title>.*)$/);
+        if (treeConnectorMatch) {
+          const prefix = treeConnectorMatch.groups.prefix || '';
+          const title = treeConnectorMatch.groups.title || '';
+          addItem(title, parseTreeDepth(prefix) + 1);
+          continue;
+        }
+
+        const bulletMatch = trimmedLine.match(/^(?<indent>[ \t]*)[-*+]\s+(?<title>.+)$/);
+        if (bulletMatch) {
+          const indent = (bulletMatch.groups.indent || '').replace(/\t/g, '    ');
+          addItem(bulletMatch.groups.title || '', Math.max(0, Math.floor(indent.length / 2)));
+          continue;
+        }
+
+        if (trimmedLine.trim()) {
+          addItem(trimmedLine, 0);
+        }
+      }
+
+      if (!parsedItems.length) return [];
+
+      if (!keepRoot && parsedItems.length > 1 && parsedItems[0].depth === 0) {
+        const restMinDepth = parsedItems.slice(1).reduce((acc, item) => Math.min(acc, item.depth), Number.MAX_VALUE);
+        if (restMinDepth > 0) {
+          return parsedItems.slice(1).map((item) => ({ title: item.title, depth: item.depth - 1 }));
+        }
+      }
+
+      return parsedItems;
+    }
+
+    function importTaskTreeTextAsChildren(raw, options = {}) {
+      const items = parseTaskTreeText(raw, options);
+      if (!items.length) return false;
+
+      const targetParent = getTaskNode(currentParentId) ? currentParentId : ROOT_ID;
+      const parentByDepth = [];
+      const createdIds = [];
+
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        const depth = Number.isFinite(item.depth) ? item.depth : 0;
+        const parentDepth = depth - 1;
+        const normalizedParentDepth = Math.max(-1, parentDepth);
+
+        const parentId = normalizedParentDepth >= 0
+          ? parentByDepth[normalizedParentDepth] || targetParent
+          : targetParent;
+        const parent = getTaskNode(parentId);
+        if (!parent) continue;
+
+        const id = uid('task');
+        const createdOrder = state.nextOrder;
+        state.nextOrder += 1;
+        const node = {
+          id,
+          title: item.title,
+          parentId: parent.id,
+          completed: false,
+          isToday: false,
+          isImportant: false,
+          kind: 'task',
+          memo: '',
+          priority: null,
+          createdAt: getNowIsoString(),
+          createdOrder,
+          completedAt: null,
+          children: [],
+          isCustomFolder: false
+        };
+
+        state.nodes[id] = node;
+        parent.children.push(id);
+        parentByDepth[depth] = id;
+        if (parentByDepth.length > depth + 1) {
+          parentByDepth.length = depth + 1;
+        }
+        createdIds.push(id);
+      }
+
+      if (!createdIds.length) return false;
+
+      rebuildChildrenCache(targetParent);
+      saveState();
+      if (!getTaskNode(currentParentId)) currentParentId = ROOT_ID;
+      render();
+      return true;
+    }
+
     function loadStateFromFileObject(raw) {
+      const asText = String(raw || '');
       try {
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(asText);
         if (!parsed || typeof parsed !== 'object' || !parsed.nodes) {
-          alert('유효한 작업 파일이 아닙니다.');
-          return;
+          throw new Error('NOT_JSON_STATE');
         }
         state = parsed;
         if (!state.nextOrder) state.nextOrder = 1;
@@ -1607,9 +2164,14 @@
         saveState();
         if (!getTaskNode(currentParentId)) currentParentId = ROOT_ID;
         render();
-      } catch (error) {
-        alert('작업 파일을 읽을 수 없습니다.');
+        return;
+      } catch (_) {}
+
+      if (importTaskTreeTextAsChildren(asText)) {
+        return;
       }
+
+      alert('작업 파일을 읽을 수 없습니다.');
     }
 
     async function pickAndLoadStateFromFile() {
@@ -1617,7 +2179,10 @@
         try {
           const [handle] = await window.showOpenFilePicker({
             multiple: false,
-            types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+            types: [
+              { description: 'JSON', accept: { 'application/json': ['.json'], 'text/plain': ['.txt'] } },
+              { description: '텍스트', accept: { 'text/plain': ['.txt'] } }
+            ]
           });
           const file = await handle.getFile();
           const raw = await file.text();
@@ -1636,8 +2201,29 @@
       return state.nodes[id] || null;
     }
 
+    function getNodeKind(node) {
+      return node && node.kind === 'memo' ? 'memo' : 'task';
+    }
+
+    function isMemoNode(node) {
+      return getNodeKind(node) === 'memo';
+    }
+
     function getPriorityValue(task) {
       return Number.isFinite(task && task.priority) ? task.priority : Infinity;
+    }
+
+    function sortTaskRowsByPriority(rows) {
+      return rows.slice().sort((a, b) => {
+        const taskA = getTaskNode(a.id);
+        const taskB = getTaskNode(b.id);
+        const priorityA = getPriorityValue(taskA);
+        const priorityB = getPriorityValue(taskB);
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        const orderA = Number.isFinite(taskA && taskA.createdOrder) ? taskA.createdOrder : Infinity;
+        const orderB = Number.isFinite(taskB && taskB.createdOrder) ? taskB.createdOrder : Infinity;
+        return orderA - orderB;
+      });
     }
 
     function enforceCompletedBoundary(ids) {
@@ -1691,7 +2277,7 @@
         if (!node) return;
 
         seen.add(nodeId);
-        if (node.isToday) result.push(nodeId);
+        if (!isMemoNode(node) && node.isToday) result.push(nodeId);
 
         const children = getChildrenFromParent(node.id);
         for (let i = 0; i < children.length; i += 1) {
@@ -1717,7 +2303,7 @@
         if (!node) return;
 
         seen.add(nodeId);
-        if (node.isImportant) result.push(nodeId);
+        if (!isMemoNode(node) && node.isImportant) result.push(nodeId);
 
         const children = getChildrenFromParent(node.id);
         for (let i = 0; i < children.length; i += 1) {
@@ -1733,18 +2319,141 @@
       return result;
     }
 
+    function getMatrixRowsFrom(parentId) {
+      const buckets = {
+        urgentImportant: [],
+        importantOnly: [],
+        urgentOnly: [],
+        neither: []
+      };
+      const seen = new Set();
+
+      function walk(nodeId) {
+        if (seen.has(nodeId)) return;
+        const node = getTaskNode(nodeId);
+        if (!node) return;
+
+        seen.add(nodeId);
+        if (!node.isCustomFolder && !isMemoNode(node) && !node.completed) {
+          const row = { id: node.id, depth: 0, parentId: node.parentId };
+          if (node.isToday && node.isImportant) {
+            buckets.urgentImportant.push(row);
+          } else if (node.isImportant) {
+            buckets.importantOnly.push(row);
+          } else if (node.isToday) {
+            buckets.urgentOnly.push(row);
+          } else {
+            buckets.neither.push(row);
+          }
+        }
+
+        const children = Array.isArray(node.children) ? node.children.slice() : [];
+        for (let i = 0; i < children.length; i += 1) {
+          walk(children[i]);
+        }
+      }
+
+      const parent = getTaskNode(parentId);
+      const top = parent && Array.isArray(parent.children) ? parent.children.slice() : [];
+      for (let i = 0; i < top.length; i += 1) {
+        walk(top[i]);
+      }
+
+      return {
+        urgentImportant: sortTaskRowsByPriority(buckets.urgentImportant),
+        importantOnly: sortTaskRowsByPriority(buckets.importantOnly),
+        urgentOnly: sortTaskRowsByPriority(buckets.urgentOnly),
+        neither: sortTaskRowsByPriority(buckets.neither)
+      };
+    }
+
+    function getNextActionRows(rootId, limit = 3) {
+      const root = getTaskNode(rootId);
+      if (!root || !Array.isArray(root.children) || !root.children.length) return [];
+
+      const today = [];
+      const leaves = [];
+      const fallback = [];
+      const seen = new Set();
+
+      function walk(nodeId) {
+        if (seen.has(nodeId)) return;
+        const node = getTaskNode(nodeId);
+        if (!node || node.isCustomFolder) return;
+
+        seen.add(nodeId);
+        if (!isMemoNode(node) && !node.completed) {
+          const row = { id: node.id, depth: 0, parentId: node.parentId };
+          if (node.isToday) today.push(row);
+
+          const children = Array.isArray(node.children)
+            ? node.children.filter((childId) => {
+              const child = getTaskNode(childId);
+              return child && !child.isCustomFolder && !isMemoNode(child) && !child.completed;
+            })
+            : [];
+
+          if (!children.length) {
+            leaves.push(row);
+          } else {
+            fallback.push(row);
+          }
+        }
+
+        const children = Array.isArray(node.children) ? node.children.slice() : [];
+        for (let i = 0; i < children.length; i += 1) {
+          walk(children[i]);
+        }
+      }
+
+      for (let i = 0; i < root.children.length; i += 1) {
+        walk(root.children[i]);
+      }
+
+      const used = new Set();
+      const result = [];
+      const addRows = (rows) => {
+        const sorted = sortTaskRowsByPriority(rows);
+        for (let i = 0; i < sorted.length && result.length < limit; i += 1) {
+          const id = sorted[i].id;
+          if (used.has(id) || id === rootId) continue;
+          used.add(id);
+          result.push(sorted[i]);
+        }
+      };
+
+      addRows(today);
+      addRows(leaves);
+      addRows(fallback);
+      return result;
+    }
+
     function getVisibleTaskRows() {
       const parent = getTaskNode(currentParentId);
       if (!parent) return [];
 
       const rows = [];
+      const applyKindFilter = (inputRows) => {
+        if (currentViewMode !== 'all' && currentViewMode !== 'pathList' && currentViewMode !== 'date' && currentViewMode !== 'completed-date') {
+          return inputRows;
+        }
+        if (currentKindFilter === 'all') return inputRows;
+        return inputRows.filter((row) => {
+          const node = getTaskNode(row.id);
+          if (!node) return false;
+          return currentKindFilter === 'memo' ? isMemoNode(node) : !isMemoNode(node);
+        });
+      };
 
       if (currentViewMode === 'today' && parent.id !== ROOT_ID) {
         const children = getChildrenFromParent(parent.id);
         for (let i = 0; i < children.length; i += 1) {
-          rows.push({ id: children[i], depth: 0, parentId: parent.id });
+          const child = getTaskNode(children[i]);
+          if (child && !isMemoNode(child)) {
+            rows.push({ id: children[i], depth: 0, parentId: parent.id });
+          }
         }
-        return rows;
+        return applyKindFilter(rows);
       }
 
       if (currentViewMode === 'today') {
@@ -1752,7 +2461,7 @@
           const node = getTaskNode(nodeId);
           if (!node) return;
 
-          if (node.isToday) {
+          if (!isMemoNode(node) && node.isToday) {
             rows.push({ id: node.id, depth: isSubChild ? 0 : 0, parentId: node.parentId });
           }
 
@@ -1766,7 +2475,7 @@
         for (let i = 0; i < top.length; i += 1) {
           collectOnlyToday(top[i], false);
         }
-        return rows;
+        return applyKindFilter(sortTaskRowsByPriority(rows));
       }
 
       if (currentViewMode === 'date' && currentDateFilterKey) {
@@ -1784,15 +2493,36 @@
             rows.push({ id: list[i].id, depth: 0, parentId: list[i].parentId });
           }
         }
-        return rows;
+        return applyKindFilter(rows);
+      }
+
+      if (currentViewMode === 'completed-date' && currentCompletedDateFilterKey) {
+        const list = Object.values(state.nodes).filter((node) => node && node.id !== ROOT_ID && node.completedAt);
+        list.sort((a, b) => {
+          const aDate = Date.parse(a.completedAt);
+          const bDate = Date.parse(b.completedAt);
+          if (Number.isNaN(aDate)) return 1;
+          if (Number.isNaN(bDate)) return -1;
+          return aDate - bDate;
+        });
+
+        for (let i = 0; i < list.length; i += 1) {
+          if (formatDateKey(list[i].completedAt) === currentCompletedDateFilterKey) {
+            rows.push({ id: list[i].id, depth: 0, parentId: list[i].parentId });
+          }
+        }
+        return applyKindFilter(rows);
       }
 
       if (currentViewMode === 'important' && parent.id !== ROOT_ID) {
         const children = getChildrenFromParent(parent.id);
         for (let i = 0; i < children.length; i += 1) {
-          rows.push({ id: children[i], depth: 0, parentId: parent.id });
+          const child = getTaskNode(children[i]);
+          if (child && !isMemoNode(child)) {
+            rows.push({ id: children[i], depth: 0, parentId: parent.id });
+          }
         }
-        return rows;
+        return applyKindFilter(rows);
       }
 
       if (currentViewMode === 'important') {
@@ -1800,7 +2530,7 @@
           const node = getTaskNode(nodeId);
           if (!node) return;
 
-          if (node.isImportant) {
+          if (!isMemoNode(node) && node.isImportant) {
             rows.push({ id: node.id, depth: 0, parentId: node.parentId });
           }
 
@@ -1814,7 +2544,7 @@
         for (let i = 0; i < top.length; i += 1) {
           collectOnlyImportant(top[i]);
         }
-        return rows;
+        return applyKindFilter(sortTaskRowsByPriority(rows));
       }
 
       if (currentViewMode === 'pathList' && currentPathListId) {
@@ -1826,14 +2556,14 @@
             rows.push({ id, depth: 0, parentId: ROOT_ID });
           }
         }
-        return rows;
+        return applyKindFilter(sortTaskRowsByPriority(rows));
       }
 
       const children = getChildrenFromParent(parent.id);
       for (let i = 0; i < children.length; i += 1) {
         rows.push({ id: children[i], depth: 0, parentId: parent.id });
       }
-      return rows;
+      return applyKindFilter(rows);
     }
 
     function isDescendant(ancestorId, nodeId) {
@@ -1852,10 +2582,20 @@
         currentDateFilterKey = null;
         isDateSectionOpen = false;
       }
+      if (currentViewMode === 'completed-date') {
+        currentViewMode = 'all';
+        currentCompletedDateFilterKey = null;
+        isCompletedDateSectionOpen = false;
+      }
       if (currentViewMode === 'pathList') {
         currentViewMode = 'all';
         currentPathListId = null;
         isDateSectionOpen = false;
+        isCompletedDateSectionOpen = false;
+      }
+      if (currentViewMode === 'matrix') {
+        currentViewMode = 'all';
+        matrixShowNeither = false;
       }
       currentParentId = nextParent;
       memoTargetTaskId = nextParent === ROOT_ID ? null : nextParent;
@@ -1962,16 +2702,19 @@
       rebuildChildrenCache(parent.id);
     }
 
-    function addTask(title, priority, isToday) {
+    function addTask(title, priority, isToday, kind = 'task') {
+      const nodeKind = kind === 'memo' ? 'memo' : 'task';
       const node = {
         id: uid('task'),
         title,
         parentId: currentParentId,
         completed: false,
-        isToday: Boolean(isToday),
+        isToday: nodeKind === 'task' ? Boolean(isToday) : false,
         isImportant: false,
+        kind: nodeKind,
         memo: '',
-        priority,
+        completedAt: null,
+        priority: nodeKind === 'task' ? priority : null,
         createdAt: getNowIsoString(),
         createdOrder: state.nextOrder,
         children: []
@@ -1989,10 +2732,12 @@
     function toggleComplete(id) {
       const node = getTaskNode(id);
       if (!node) return;
+      if (isMemoNode(node)) return;
       const parent = getTaskNode(node.parentId);
       if (!parent) return;
 
       node.completed = !node.completed;
+      node.completedAt = node.completed ? getNowIsoString() : null;
       const childIndex = parent.children.indexOf(id);
       if (childIndex === -1) return;
 
@@ -2012,6 +2757,7 @@
     function updatePriority(id, raw) {
       const node = getTaskNode(id);
       if (!node) return;
+      if (isMemoNode(node)) return;
       node.priority = parsePriority(raw);
 
       if (!node.completed) {
@@ -2029,19 +2775,76 @@
       memoPanelInput.focus();
     }
 
+    function updateNodeKind(id, kind) {
+      const node = getTaskNode(id);
+      if (!node || node.id === ROOT_ID || node.isCustomFolder) return;
+
+      const nextKind = kind === 'memo' ? 'memo' : 'task';
+      const applyKind = (targetNode, targetKind) => {
+        if (!targetNode || targetNode.id === ROOT_ID || targetNode.isCustomFolder) return;
+        targetNode.kind = targetKind;
+        if (targetNode.kind === 'memo') {
+          targetNode.completed = false;
+          targetNode.completedAt = null;
+          targetNode.isToday = false;
+          targetNode.isImportant = false;
+          targetNode.priority = null;
+        }
+      };
+
+      if (nextKind === 'memo') {
+        const seen = new Set();
+        const applySubtree = (nodeId) => {
+          if (seen.has(nodeId)) return;
+          seen.add(nodeId);
+
+          const target = getTaskNode(nodeId);
+          if (!target) return;
+          applyKind(target, 'memo');
+
+          const children = Array.isArray(target.children) ? target.children.slice() : [];
+          for (let i = 0; i < children.length; i += 1) {
+            applySubtree(children[i]);
+          }
+        };
+
+        applySubtree(id);
+      } else {
+        applyKind(node, 'task');
+      }
+
+      saveState();
+      render();
+    }
+
+    function markAsNextAction(id) {
+      const node = getTaskNode(id);
+      if (!node || node.id === ROOT_ID || node.isCustomFolder) return;
+
+      node.kind = 'task';
+      node.completed = false;
+      node.completedAt = null;
+      node.isToday = true;
+      saveState();
+      render();
+    }
+
       function cloneTaskSubtree(sourceId, targetParentId) {
         const source = getTaskNode(sourceId);
         const targetParent = getTaskNode(targetParentId);
         if (!source || !targetParent) return null;
 
         const cloneNodeRecursively = (sourceNode) => {
+          const sourceKind = getNodeKind(sourceNode);
           const copied = {
             id: sourceNode.isCustomFolder ? uid('folder') : uid('task'),
             title: sourceNode.title,
             parentId: targetParentId,
-            completed: sourceNode.completed,
-            isToday: sourceNode.isToday,
-            isImportant: sourceNode.isImportant,
+            completed: sourceKind === 'task' ? sourceNode.completed : false,
+            completedAt: sourceKind === 'task' && sourceNode.completed ? sourceNode.completedAt || getNowIsoString() : null,
+            isToday: sourceKind === 'task' ? sourceNode.isToday : false,
+            isImportant: sourceKind === 'task' ? sourceNode.isImportant : false,
+            kind: sourceKind,
             memo: sourceNode.memo || '',
             priority: sourceNode.priority,
             createdAt: getNowIsoString(),
@@ -2093,6 +2896,7 @@
     function updateImportantFlag(id, isImportant) {
       const node = getTaskNode(id);
       if (!node) return;
+      if (isMemoNode(node)) return;
       node.isImportant = Boolean(isImportant);
       saveState();
       render();
@@ -2101,6 +2905,7 @@
     function updateTodayFlag(id, isToday) {
       const node = getTaskNode(id);
       if (!node) return;
+      if (isMemoNode(node)) return;
       node.isToday = Boolean(isToday);
       saveState();
       render();
@@ -2335,13 +3140,22 @@
         : [];
       const todayCount = getTodayTaskIdsFrom(currentParentId).length;
       const importantCount = getImportantTaskIdsFrom(currentParentId).length;
+      const matrixBuckets = getMatrixRowsFrom(currentParentId);
+      const matrixCount = matrixBuckets.urgentImportant.length
+        + matrixBuckets.importantOnly.length
+        + matrixBuckets.urgentOnly.length;
 
       tabAll.textContent = `전체 (${childIds.length})`;
       tabToday.textContent = `오늘 할일 (${todayCount})`;
       tabImportant.textContent = `⭐ 중요 (${importantCount})`;
+      tabMatrix.textContent = `4분할 (${matrixCount})`;
       tabAll.classList.toggle('active', currentViewMode === 'all');
       tabToday.classList.toggle('active', currentViewMode === 'today');
       tabImportant.classList.toggle('active', currentViewMode === 'important');
+      tabMatrix.classList.toggle('active', currentViewMode === 'matrix');
+      kindFilterAllBtn.classList.toggle('active', currentKindFilter === 'all');
+      kindFilterTaskBtn.classList.toggle('active', currentKindFilter === 'task');
+      kindFilterMemoBtn.classList.toggle('active', currentKindFilter === 'memo');
       clearTodayBtn.style.display = currentViewMode === 'today' ? '' : 'none';
     }
 
@@ -2349,7 +3163,9 @@
       if (!getTaskNode(tabId)) return;
       currentViewMode = 'all';
       currentDateFilterKey = null;
+      currentCompletedDateFilterKey = null;
       isDateSectionOpen = false;
+      isCompletedDateSectionOpen = false;
       currentPathListId = null;
       setCurrentParent(tabId);
     }
@@ -2603,6 +3419,21 @@
       isDateSectionOpen = true;
       currentViewMode = 'date';
       currentDateFilterKey = dateKey;
+      currentCompletedDateFilterKey = null;
+      isCompletedDateSectionOpen = false;
+      currentPathListId = null;
+      currentParentId = ROOT_ID;
+      memoTargetTaskId = null;
+      render();
+    }
+
+    function openCompletedDateFilter(dateKey) {
+      if (!dateKey) return;
+      isCompletedDateSectionOpen = true;
+      currentViewMode = 'completed-date';
+      currentCompletedDateFilterKey = dateKey;
+      currentDateFilterKey = null;
+      isDateSectionOpen = false;
       currentPathListId = null;
       currentParentId = ROOT_ID;
       memoTargetTaskId = null;
@@ -2619,6 +3450,17 @@
         createdDateToggleBtn.textContent = isDateSectionOpen
           ? `날짜별 보기${dateSuffix}`
           : '날짜별 보기';
+      }
+
+      if (completedDateSection) {
+        completedDateSection.classList.toggle('open', isCompletedDateSectionOpen);
+      }
+      if (completedDateToggleBtn) {
+        completedDateToggleBtn.setAttribute('aria-expanded', isCompletedDateSectionOpen ? 'true' : 'false');
+        const dateSuffix = currentCompletedDateFilterKey ? ` (${currentCompletedDateFilterKey})` : '';
+        completedDateToggleBtn.textContent = isCompletedDateSectionOpen
+          ? `완료일별 보기${dateSuffix}`
+          : '완료일별 보기';
       }
     }
 
@@ -2710,6 +3552,74 @@
       }
     }
 
+    function renderCompletedDateList() {
+      if (!completedDateList) return;
+      completedDateList.innerHTML = '';
+
+      const dateBuckets = {};
+      Object.values(state.nodes).forEach((node) => {
+        if (!node || node.id === ROOT_ID || !node.completedAt || !node.completed) return;
+        const dateKey = formatDateKey(node.completedAt);
+        if (!dateKey) return;
+        if (!dateBuckets[dateKey]) {
+          dateBuckets[dateKey] = { key: dateKey, count: 0, completedAt: node.completedAt };
+        }
+        dateBuckets[dateKey].count += 1;
+        if (new Date(node.completedAt) > new Date(dateBuckets[dateKey].completedAt)) {
+          dateBuckets[dateKey].completedAt = node.completedAt;
+        }
+      });
+
+      const list = Object.values(dateBuckets).sort((a, b) => {
+        const dateA = new Date(b.key);
+        const dateB = new Date(a.key);
+        if (Number.isNaN(dateA.getTime()) || Number.isNaN(dateB.getTime())) return 0;
+        return dateA.getTime() - dateB.getTime();
+      });
+
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'custom-tab-item';
+        const emptyText = document.createElement('button');
+        emptyText.type = 'button';
+        emptyText.className = 'custom-tab-open';
+        emptyText.style.flex = '1';
+        emptyText.textContent = '완료된 날짜가 없습니다';
+        emptyText.disabled = true;
+        empty.appendChild(emptyText);
+        completedDateList.appendChild(empty);
+        return;
+      }
+
+      for (let i = 0; i < list.length; i += 1) {
+        const item = list[i];
+        const row = document.createElement('div');
+        row.className = 'custom-tab-item';
+        row.draggable = false;
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'custom-tab-open';
+        openBtn.textContent = `${formatDateLabel(item.completedAt)} (${item.count})`;
+        openBtn.title = `${item.key} (${item.count}개)`;
+        openBtn.classList.toggle('active', currentViewMode === 'completed-date' && currentCompletedDateFilterKey === item.key);
+        openBtn.addEventListener('click', () => {
+          openCompletedDateFilter(item.key);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'custom-tab-delete';
+        delBtn.textContent = '×';
+        delBtn.title = '지우기';
+        delBtn.style.display = 'none';
+
+        row.appendChild(openBtn);
+        row.appendChild(delBtn);
+        completedDateList.appendChild(row);
+      }
+    }
+
     function renderBreadcrumb() {
       if (currentViewMode === 'date') {
         breadcrumb.innerHTML = '';
@@ -2725,6 +3635,20 @@
         return;
       }
 
+      if (currentViewMode === 'completed-date') {
+        breadcrumb.innerHTML = '';
+        const button = document.createElement('button');
+        button.className = 'crumb current';
+        button.type = 'button';
+        button.textContent = currentCompletedDateFilterKey ? `완료일: ${currentCompletedDateFilterKey}` : '완료일';
+        breadcrumb.appendChild(button);
+        const dateLabel = currentCompletedDateFilterKey || '';
+        addContext.textContent = `완료일 기준: ${dateLabel || '전체'}`;
+        const modeName = currentCompletedDateFilterKey ? `완료일 (${currentCompletedDateFilterKey})` : '완료일';
+        modeHint.textContent = `현재 모드: ${modeName}`;
+        return;
+      }
+
       if (currentViewMode === 'pathList') {
         const pathList = getPathListById(currentPathListId);
         breadcrumb.innerHTML = '';
@@ -2736,6 +3660,18 @@
         addContext.textContent = pathList ? `현재 목록: ${pathList.title}` : '현재 목록을 찾을 수 없습니다.';
         const modeName = pathList ? `저장 목록 (${pathList.title})` : '저장 목록';
         modeHint.textContent = `현재 모드: ${modeName}`;
+        return;
+      }
+
+      if (currentViewMode === 'matrix') {
+        breadcrumb.innerHTML = '';
+        const button = document.createElement('button');
+        button.className = 'crumb current';
+        button.type = 'button';
+        button.textContent = '4분할';
+        breadcrumb.appendChild(button);
+        addContext.textContent = '오늘할일은 급함, 별표는 중요함으로 분류합니다.';
+        modeHint.textContent = '현재 모드: 4분할';
         return;
       }
 
@@ -2774,8 +3710,25 @@
             ? '중요'
             : currentViewMode === 'date'
               ? `작성일 (${currentDateFilterKey || '전체'})`
+              : currentViewMode === 'completed-date'
+                ? `완료일 (${currentCompletedDateFilterKey || '전체'})`
+                : currentViewMode === 'matrix'
+                  ? '4분할'
               : '전체';
       modeHint.textContent = `현재 모드: ${modeName}`;
+    }
+
+    function syncAddFormDefaults() {
+      if (!taskKindInput) return;
+      const parent = getTaskNode(currentParentId);
+      const shouldDefaultMemo = parent && parent.id !== ROOT_ID && isMemoNode(parent);
+      taskKindInput.value = shouldDefaultMemo ? 'memo' : 'task';
+      taskPriorityInput.disabled = shouldDefaultMemo;
+      taskTodayInput.disabled = shouldDefaultMemo;
+      if (shouldDefaultMemo) {
+        taskPriorityInput.value = '';
+        taskTodayInput.checked = false;
+      }
     }
 
     function createTaskItem(task, id, rowParentId) {
@@ -2792,6 +3745,11 @@
       handle.className = 'handle';
       handle.textContent = '≡';
 
+      const kindBadge = document.createElement('span');
+      const taskIsMemo = isMemoNode(task);
+      kindBadge.className = taskIsMemo ? 'task-kind-badge memo' : 'task-kind-badge';
+      kindBadge.textContent = taskIsMemo ? '메모' : '할 일';
+
       const titleBtn = document.createElement('button');
       titleBtn.className = 'task-title';
       titleBtn.type = 'button';
@@ -2804,13 +3762,14 @@
 
       const meta = document.createElement('span');
       meta.className = 'task-meta';
-      const priorityLabel = task.priority === null ? '우선순위: 없음' : `우선순위: ${task.priority}`;
+      const priorityLabel = taskIsMemo ? '메모' : (task.priority === null ? '우선순위: 없음' : `우선순위: ${task.priority}`);
       const memoHint = task.memo ? ' · 메모 있음' : '';
       const createdAtLabel = formatCreatedAt(task.createdAt);
       const createdText = createdAtLabel ? ` · 작성 ${createdAtLabel}` : '';
       meta.textContent = `${task.children.length}개 하위 · ${priorityLabel}${memoHint}${createdText}`;
 
       left.appendChild(handle);
+      left.appendChild(kindBadge);
       left.appendChild(titleBtn);
       left.appendChild(meta);
 
@@ -2833,9 +3792,30 @@
       starBtn.className = task.isImportant ? 'btn-star active' : 'btn-star';
       starBtn.textContent = task.isImportant ? '★' : '☆';
       starBtn.title = task.isImportant ? '중요 해제' : '중요 표시';
+      starBtn.disabled = taskIsMemo;
       starBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         updateImportantFlag(id, !task.isImportant);
+      });
+
+      const kindBtn = document.createElement('button');
+      kindBtn.type = 'button';
+      kindBtn.className = 'btn-secondary';
+      kindBtn.textContent = taskIsMemo ? '할 일화' : '메모화';
+      kindBtn.title = taskIsMemo ? '이 메모를 할 일로 전환' : '이 할 일을 메모로 전환';
+      kindBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        updateNodeKind(id, taskIsMemo ? 'task' : 'memo');
+      });
+
+      const nextActionBtn = document.createElement('button');
+      nextActionBtn.type = 'button';
+      nextActionBtn.className = 'btn-done';
+      nextActionBtn.textContent = '다음 행동';
+      nextActionBtn.title = '할 일로 전환하고 오늘 할일에 등록';
+      nextActionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        markAsNextAction(id);
       });
 
       const memoBtn = document.createElement('button');
@@ -2874,6 +3854,7 @@
       const todayCheck = document.createElement('input');
       todayCheck.type = 'checkbox';
       todayCheck.checked = Boolean(task.isToday);
+      todayCheck.disabled = taskIsMemo;
       todayCheck.addEventListener('change', (e) => {
         e.stopPropagation();
         updateTodayFlag(id, todayCheck.checked);
@@ -2887,6 +3868,7 @@
       priorityField.placeholder = '우선순위';
       priorityField.value = task.priority === null ? '' : task.priority;
       priorityField.title = '우선순위 입력(낮을수록 위)';
+      priorityField.disabled = taskIsMemo;
       priorityField.addEventListener('change', (e) => {
         e.stopPropagation();
         updatePriority(id, e.target.value);
@@ -2901,13 +3883,35 @@
         deleteTask(id);
       });
 
+      const removeFromList = document.createElement('button');
+      removeFromList.type = 'button';
+      removeFromList.className = 'btn-secondary';
+      removeFromList.textContent = '목록에서 제거';
+      removeFromList.title = '현재 목록에서만 제거';
+      removeFromList.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentViewMode !== 'pathList' || !currentPathListId) {
+          window.alert('목록에서 볼 때만 사용 가능합니다.');
+          return;
+        }
+        const activeList = getPathListById(currentPathListId);
+        const pathName = activeList ? (activeList.title || '목록') : '목록';
+        if (!window.confirm(`"${task.title || '이름 없음'}"을(를) ${pathName}에서 제거할까요?`)) return;
+        removeTaskFromPathList(id, currentPathListId);
+      });
+
         actions.appendChild(moveToAbove);
         actions.appendChild(starBtn);
+        actions.appendChild(kindBtn);
+        actions.appendChild(nextActionBtn);
         actions.appendChild(memoBtn);
         actions.appendChild(copyBtn);
         actions.appendChild(renameBtn);
         actions.appendChild(priorityField);
         actions.appendChild(todayWrap);
+        if (currentViewMode === 'pathList') {
+          actions.appendChild(removeFromList);
+        }
         actions.appendChild(del);
 
       li.appendChild(left);
@@ -2916,6 +3920,10 @@
       li.addEventListener('contextmenu', (e) => {
         if (e.target.closest('.task-actions')) return;
         e.preventDefault();
+        if (taskIsMemo) {
+          setMemoTarget(id, true);
+          return;
+        }
         toggleComplete(id);
       });
 
@@ -2987,19 +3995,148 @@
       return li;
     }
 
+    function createNextActions(taskId) {
+      const rows = getNextActionRows(taskId, 3);
+      if (!rows.length) return null;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'next-actions';
+
+      const title = document.createElement('div');
+      title.className = 'next-actions-title';
+      title.textContent = '다음 행동';
+      wrap.appendChild(title);
+
+      rows.forEach((row) => {
+        const task = getTaskNode(row.id);
+        if (!task) return;
+
+        const item = document.createElement('div');
+        item.className = 'next-action-row';
+
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'next-action-open';
+        open.textContent = task.title || '이름 없음';
+        open.title = getTaskPathLabel(row.id);
+        open.addEventListener('click', () => {
+          setCurrentParent(row.id);
+          setMemoTarget(row.id, true);
+        });
+
+        const done = document.createElement('button');
+        done.type = 'button';
+        done.className = 'next-action-done';
+        done.textContent = '완료';
+        done.title = '이 다음 행동 완료';
+        done.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleComplete(row.id);
+        });
+
+        item.appendChild(open);
+        item.appendChild(done);
+        wrap.appendChild(item);
+      });
+
+      return wrap;
+    }
+
+    function createMatrixCard(title, rows, options = {}) {
+      const card = document.createElement('section');
+      card.className = `matrix-card${options.primary ? ' primary' : ''}${options.importantOnly ? ' important-only' : ''}${options.urgentOnly ? ' urgent-only' : ''}${options.quiet ? ' quiet' : ''}`;
+
+      const head = document.createElement('div');
+      head.className = 'matrix-head';
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'matrix-title';
+      titleEl.textContent = title;
+
+      const count = document.createElement('span');
+      count.className = 'matrix-count';
+      count.textContent = `${rows.length}개`;
+
+      head.appendChild(titleEl);
+      head.appendChild(count);
+      card.appendChild(head);
+
+      const list = document.createElement('ul');
+      list.className = 'matrix-list';
+
+      const visibleRows = options.limit && !matrixShowNeither ? rows.slice(0, options.limit) : rows;
+      if (!visibleRows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'matrix-empty';
+        empty.textContent = '해당 작업이 없습니다.';
+        card.appendChild(empty);
+        return card;
+      }
+
+      visibleRows.forEach((row) => {
+        const task = getTaskNode(row.id);
+        if (!task) return;
+        list.appendChild(createTaskItem(task, row.id, row.parentId));
+        if (options.showNextActions) {
+          const nextActions = createNextActions(row.id);
+          if (nextActions) list.appendChild(nextActions);
+        }
+      });
+      card.appendChild(list);
+
+      if (options.limit && rows.length > options.limit) {
+        const more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'btn-secondary matrix-more';
+        more.textContent = matrixShowNeither
+          ? '둘 다 아닌 일 접기'
+          : `둘 다 아닌 일 ${rows.length - options.limit}개 더 보기`;
+        more.addEventListener('click', () => {
+          matrixShowNeither = !matrixShowNeither;
+          renderTasks();
+        });
+        card.appendChild(more);
+      }
+
+      return card;
+    }
+
+    function renderMatrixTasks() {
+      taskList.style.display = 'none';
+      matrixView.innerHTML = '';
+      matrixView.classList.add('open');
+      emptyState.style.display = 'none';
+
+      const buckets = getMatrixRowsFrom(currentParentId);
+      matrixView.appendChild(createMatrixCard('급하고 중요한 일', buckets.urgentImportant, { primary: true, showNextActions: true }));
+      matrixView.appendChild(createMatrixCard('중요하지만 급하지 않은 일', buckets.importantOnly, { importantOnly: true, showNextActions: true }));
+      matrixView.appendChild(createMatrixCard('급하지만 중요하지 않은 일', buckets.urgentOnly, { urgentOnly: true, showNextActions: true }));
+      matrixView.appendChild(createMatrixCard('둘 다 아닌 일', buckets.neither, { quiet: true, limit: 20 }));
+    }
+
     function renderTasks() {
       taskList.innerHTML = '';
+      taskList.style.display = '';
+      matrixView.innerHTML = '';
+      matrixView.classList.remove('open');
       emptyState.style.display = 'none';
+
+      if (currentViewMode === 'matrix') {
+        renderMatrixTasks();
+        return;
+      }
 
       const visibleRows = getVisibleTaskRows();
       if (!visibleRows.length) {
-        emptyState.textContent = currentViewMode === 'today'
-          ? '오늘 할일로 지정된 작업이 없습니다.'
-          : currentViewMode === 'important'
-            ? '중요로 지정된 작업이 없습니다.'
-            : currentViewMode === 'date'
-              ? '해당 날짜에 작업이 없습니다.'
-            : '작업이 없습니다.';
+      emptyState.textContent = currentViewMode === 'today'
+        ? '오늘 할일로 지정된 작업이 없습니다.'
+        : currentViewMode === 'important'
+          ? '중요로 지정된 작업이 없습니다.'
+          : currentViewMode === 'date'
+            ? '해당 날짜에 작업이 없습니다.'
+            : currentViewMode === 'completed-date'
+              ? '해당 완료일에 작업이 없습니다.'
+          : '작업이 없습니다.';
         emptyState.style.display = 'block';
         return;
       }
@@ -3055,14 +4192,17 @@
 
     function render() {
       if (!getTaskNode(currentParentId)) currentParentId = ROOT_ID;
+      document.body.classList.toggle('matrix-mode', currentViewMode === 'matrix');
       renderTabs();
       updateDateSectionUI();
       updateFolderSectionUI();
       updatePathSectionUI();
       renderCreatedDateList();
+      renderCompletedDateList();
       renderCustomTabs();
       renderPathLists();
       renderBreadcrumb();
+      syncAddFormDefaults();
       renderTasks();
       renderMemoPanel();
     }
@@ -3079,6 +4219,18 @@
             renderCreatedDateList();
           } else if (createdDateList) {
             createdDateList.innerHTML = '';
+          }
+        });
+      }
+
+      if (completedDateToggleBtn) {
+        completedDateToggleBtn.addEventListener('click', () => {
+          isCompletedDateSectionOpen = !isCompletedDateSectionOpen;
+          updateDateSectionUI();
+          if (isCompletedDateSectionOpen) {
+            renderCompletedDateList();
+          } else if (completedDateList) {
+            completedDateList.innerHTML = '';
           }
         });
       }
@@ -3117,9 +4269,12 @@
         if (currentViewMode !== 'all') {
           currentViewMode = 'all';
           currentDateFilterKey = null;
+          currentCompletedDateFilterKey = null;
           isDateSectionOpen = false;
+          isCompletedDateSectionOpen = false;
           currentPathListId = null;
           currentParentId = ROOT_ID;
+          matrixShowNeither = false;
           render();
         }
       });
@@ -3128,9 +4283,12 @@
         if (currentViewMode !== 'today') {
           currentViewMode = 'today';
           currentDateFilterKey = null;
+          currentCompletedDateFilterKey = null;
           isDateSectionOpen = false;
+          isCompletedDateSectionOpen = false;
           currentPathListId = null;
           currentParentId = ROOT_ID;
+          matrixShowNeither = false;
           render();
         }
       });
@@ -3139,11 +4297,43 @@
         if (currentViewMode !== 'important') {
           currentViewMode = 'important';
           currentDateFilterKey = null;
+          currentCompletedDateFilterKey = null;
           isDateSectionOpen = false;
+          isCompletedDateSectionOpen = false;
           currentPathListId = null;
           currentParentId = ROOT_ID;
+          matrixShowNeither = false;
           render();
         }
+      });
+
+      tabMatrix.addEventListener('click', () => {
+        if (currentViewMode !== 'matrix') {
+          currentViewMode = 'matrix';
+          currentDateFilterKey = null;
+          currentCompletedDateFilterKey = null;
+          isDateSectionOpen = false;
+          isCompletedDateSectionOpen = false;
+          currentPathListId = null;
+          currentParentId = ROOT_ID;
+          matrixShowNeither = false;
+          render();
+        }
+      });
+
+      kindFilterAllBtn.addEventListener('click', () => {
+        currentKindFilter = 'all';
+        render();
+      });
+
+      kindFilterTaskBtn.addEventListener('click', () => {
+        currentKindFilter = 'task';
+        render();
+      });
+
+      kindFilterMemoBtn.addEventListener('click', () => {
+        currentKindFilter = 'memo';
+        render();
       });
 
       addCustomTabBtn.addEventListener('click', () => {
@@ -3174,9 +4364,35 @@
         }
       });
 
+      if (taskKindInput) {
+        taskKindInput.addEventListener('change', () => {
+          const isMemo = taskKindInput.value === 'memo';
+          taskPriorityInput.disabled = isMemo;
+          taskTodayInput.disabled = isMemo;
+          if (isMemo) {
+            taskPriorityInput.value = '';
+            taskTodayInput.checked = false;
+          }
+        });
+      }
+
       saveStateBtn.addEventListener('click', () => {
         downloadStateFile();
       });
+
+      if (memoizeCurrentTreeBtn) {
+        memoizeCurrentTreeBtn.addEventListener('click', () => {
+          if (currentParentId === ROOT_ID) {
+            window.alert('루트 전체 메모화는 너무 위험합니다. 메모화할 큰 항목 안으로 들어간 뒤 실행하세요.');
+            return;
+          }
+
+          const current = getTaskNode(currentParentId);
+          const title = current ? current.title || '현재 항목' : '현재 항목';
+          if (!window.confirm(`"${title}"와 그 하위 항목을 전부 메모화할까요?`)) return;
+          updateNodeKind(currentParentId, 'memo');
+        });
+      }
 
       if (exportTreeBtn) {
         exportTreeBtn.addEventListener('click', () => {
@@ -3203,6 +4419,22 @@
         };
         reader.readAsText(files[0], 'utf-8');
       });
+
+      if (pasteTreeAddBtn && pasteTreeInput) {
+        pasteTreeAddBtn.addEventListener('click', () => {
+          const raw = pasteTreeInput.value || '';
+          if (!raw.trim()) {
+            pasteTreeInput.focus();
+            return;
+          }
+          if (!importTaskTreeTextAsChildren(raw, { keepRoot: true })) {
+            window.alert('붙여넣은 트리 구조를 읽을 수 없습니다.');
+            return;
+          }
+          pasteTreeInput.value = '';
+          taskInput.focus();
+        });
+      }
 
       goRootBtn.addEventListener('click', () => {
         setCurrentParent(ROOT_ID);
@@ -3334,11 +4566,13 @@
 
         const priority = parsePriority(taskPriorityInput.value);
         const isToday = taskTodayInput.checked;
+        const kind = taskKindInput && taskKindInput.value === 'memo' ? 'memo' : 'task';
 
-        addTask(title, priority, isToday);
+        addTask(title, priority, isToday, kind);
         taskInput.value = '';
         taskPriorityInput.value = '';
         taskTodayInput.checked = false;
+        syncAddFormDefaults();
         taskInput.focus();
         });
 
