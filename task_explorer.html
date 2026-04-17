@@ -818,6 +818,11 @@
       transition: opacity 0.15s ease;
     }
 
+    .task-item:hover .task-meta,
+    .task-item:focus-within .task-meta {
+      display: none;
+    }
+
     .matrix-list .task-actions {
       max-width: min(62%, 520px);
     }
