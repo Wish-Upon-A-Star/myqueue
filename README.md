@@ -6,13 +6,21 @@ Windows에서 바로 실행하는 개인용 작업 큐/메모 프로그램입니
 
 ## 바로 실행
 
-아래 파일을 더블클릭하세요.
+권장 실행 파일은 아래 경로입니다.
+
+```text
+dist/TaskExplorer/TaskExplorer.exe
+```
+
+이 방식은 PyInstaller `onedir` 빌드입니다. Windows 보안 오탐 가능성을 줄이기 위해 최신 빌드는 이 폴더 실행 방식을 권장합니다.
+
+이전 단일 exe도 아래 위치에 남아 있을 수 있습니다.
 
 ```text
 dist/TaskExplorer.exe
 ```
 
-이 파일은 PyInstaller `--onefile --windowed`로 만든 단일 exe입니다.
+단일 exe는 환경에 따라 Windows 보안에서 오탐 차단될 수 있습니다.
 
 ## 주요 기능
 
@@ -42,6 +50,8 @@ dist/TaskExplorer.exe
 - 트리 텍스트 붙여넣기 추가
 - 간단한 색상 구분 UI
 - 어두운 네비게이션 사이드바와 카드형 작업 목록
+- 발표용 히어로 영역과 빈 상태 온보딩 카드
+- 기능을 탐색/작업/상태 그룹으로 나눈 액션 바
 - 오늘/중요/완료/메모/폴더 상태별 색상 구분
 - 오른쪽 작업 상세/메모 패널
 
@@ -82,7 +92,7 @@ Python 3.14 기준으로 확인했습니다.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install pyinstaller customtkinter
-.\.venv\Scripts\python.exe -m PyInstaller --onefile --windowed --name TaskExplorer --collect-data customtkinter task_explorer_native.py
+.\.venv\Scripts\python.exe -m PyInstaller --onedir --windowed --name TaskExplorer --collect-data customtkinter task_explorer_native.py
 ```
 
 결과:
@@ -94,7 +104,8 @@ dist/TaskExplorer.exe
 ## 파일 구성
 
 ```text
-dist/TaskExplorer.exe       바로 실행하는 단일 exe
+dist/TaskExplorer/          권장 실행 폴더
+dist/TaskExplorer.exe       이전 단일 exe
 task_explorer_native.py     customtkinter 네이티브 앱 소스
 legacy/task_explorer.html   이전 HTML 버전 백업
 ```
