@@ -47,13 +47,19 @@ COL = {
     "hero": "#fbf8f3",
     "hero_soft": "#fff3e3",
     "hero_line": "#efd8bf",
+    "detail_bg": "#fbfcfd",
+    "detail_panel": "#ffffff",
+    "detail_button": "#e8f2f5",
 }
 
-FONT = "Malgun Gothic"
+FONT = "Segoe UI Rounded"
+READ_FONT = "Malgun Gothic"
 TITLE_FONT = (FONT, 26, "bold")
 SECTION_FONT = (FONT, 14, "bold")
 BODY_FONT = (FONT, 12)
 SMALL_FONT = (FONT, 11)
+READ_BODY_FONT = (READ_FONT, 12)
+READ_TITLE_FONT = (READ_FONT, 15, "bold")
 
 
 def app_dir():
@@ -346,13 +352,13 @@ class App(ctk.CTk):
         self.hint = ctk.CTkLabel(hero, text="", font=BODY_FONT, text_color=COL["muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
         self.summary = ctk.CTkLabel(hero, text="", font=(FONT, 13, "bold"), text_color="white", fg_color=COL["primary"], corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
         add = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=22, border_width=1, border_color=COL["line"]); add.grid(row=2, column=0, sticky="ew", pady=(0, 12)); add.grid_columnconfigure(0, weight=1)
-        self.title_entry = ctk.CTkEntry(add, placeholder_text="새 작업을 입력하세요", height=46, font=(FONT, 13), border_color=COL["line"], fg_color=COL["soft"]); self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14); self.title_entry.bind("<Return>", lambda _e: self.add_task())
+        self.title_entry = ctk.CTkEntry(add, placeholder_text="새 작업을 입력하세요", height=46, font=(READ_FONT, 13), border_color=COL["line"], fg_color=COL["soft"]); self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14); self.title_entry.bind("<Return>", lambda _e: self.add_task())
         self.kind_var = ctk.StringVar(value="할 일"); ctk.CTkOptionMenu(add, values=["할 일", "메모"], variable=self.kind_var, width=92, height=46, font=SMALL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"]).grid(row=0, column=1, padx=(0, 8))
         self.priority = ctk.CTkEntry(add, placeholder_text="우선순위", width=100, height=46, font=SMALL_FONT, border_color=COL["line"], fg_color=COL["soft"]); self.priority.grid(row=0, column=2, padx=(0, 8))
         self.today_var = ctk.BooleanVar(value=False); ctk.CTkCheckBox(add, text="오늘", variable=self.today_var, width=70).grid(row=0, column=3, padx=(0, 8))
         self.make_btn(add, "추가", self.add_task, COL["primary"]).grid(row=0, column=4, padx=(0, 12), sticky="ns")
         self.paste = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=18, border_width=1, border_color=COL["line"]); self.paste.grid_columnconfigure(0, weight=1)
-        self.paste_text = ctk.CTkTextbox(self.paste, height=110); self.paste_text.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
+        self.paste_text = ctk.CTkTextbox(self.paste, height=110, font=READ_BODY_FONT); self.paste_text.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
         self.make_btn(self.paste, "붙여넣기 추가", self.add_pasted_tree, COL["primary"]).grid(row=0, column=1, padx=(0,12), pady=12, sticky="ns")
         tb = ctk.CTkFrame(self.main, fg_color=COL["panel"], corner_radius=20, border_width=1, border_color=COL["line"]); tb.grid(row=3, column=0, sticky="ew", pady=(0, 12)); tb.grid_columnconfigure((0,1,2), weight=1)
         self.action_group(tb, "탐색", [("루트", self.go_root), ("열기", self.open_selected), ("위로 이동", self.move_to_parent), ("트리 붙여넣기", self.toggle_paste)], 0)
@@ -367,12 +373,12 @@ class App(ctk.CTk):
             self.make_btn(frame, text, cmd, variant="danger" if text == "삭제" else "soft", height=32).grid(row=1 + i // 2, column=i % 2, sticky="ew", padx=3, pady=3)
 
     def build_detail(self):
-        self.detail = ctk.CTkFrame(self, fg_color=COL["panel"], corner_radius=0, width=410); self.detail.grid(row=0, column=2, sticky="nsew"); self.detail.grid_propagate(False); self.detail.grid_columnconfigure(0, weight=1); self.detail.grid_rowconfigure(3, weight=1)
+        self.detail = ctk.CTkFrame(self, fg_color=COL["detail_bg"], corner_radius=0, width=410); self.detail.grid(row=0, column=2, sticky="nsew"); self.detail.grid_propagate(False); self.detail.grid_columnconfigure(0, weight=1); self.detail.grid_rowconfigure(3, weight=1)
         ctk.CTkLabel(self.detail, text="작업 상세", font=SECTION_FONT, text_color=COL["muted"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(24, 4))
         self.detail_title = ctk.CTkLabel(self.detail, text="선택 없음", font=(FONT, 24, "bold"), text_color=COL["text"], anchor="w", justify="left", wraplength=360); self.detail_title.grid(row=1, column=0, sticky="ew", padx=22, pady=(0, 8))
         self.detail_meta = ctk.CTkLabel(self.detail, text="작업을 선택하면 상세가 보입니다.", text_color=COL["muted"], anchor="w", justify="left", wraplength=360, font=SMALL_FONT); self.detail_meta.grid(row=2, column=0, sticky="ew", padx=22, pady=(0, 16))
-        self.memo = ctk.CTkTextbox(self.detail, fg_color=COL["soft"], corner_radius=16, border_width=1, border_color=COL["line"], font=BODY_FONT); self.memo.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 12))
-        self.make_btn(self.detail, "메모 저장", self.save_memo, COL["primary"], height=42).grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 18))
+        self.memo = ctk.CTkTextbox(self.detail, fg_color=COL["detail_panel"], corner_radius=18, border_width=1, border_color=COL["line"], font=READ_BODY_FONT); self.memo.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 12))
+        ctk.CTkButton(self.detail, text="메모 저장", command=self.save_memo, fg_color=COL["detail_button"], hover_color="#d9edf2", text_color=COL["primary"], height=42, corner_radius=14, font=SMALL_FONT, border_width=1, border_color=COL["line"]).grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 18))
 
     def set_view(self, mode):
         self.view_mode = mode; self.current_list_id = None; self.current_date = None; self.current_date_mode = None
@@ -454,8 +460,8 @@ class App(ctk.CTk):
             card = ctk.CTkFrame(box, fg_color=COL["soft"], corner_radius=18, border_width=1, border_color=COL["line"])
             card.grid(row=2, column=i, sticky="nsew", padx=10, pady=(0, 28))
             self.pill(card, num, COL["primary"]).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 6))
-            ctk.CTkLabel(card, text=title, font=(FONT, 15, "bold"), text_color=COL["text"], anchor="w").grid(row=1, column=0, sticky="ew", padx=14)
-            ctk.CTkLabel(card, text=desc, font=SMALL_FONT, text_color=COL["muted"], anchor="w", justify="left", wraplength=210).grid(row=2, column=0, sticky="ew", padx=14, pady=(4, 14))
+            ctk.CTkLabel(card, text=title, font=(READ_FONT, 15, "bold"), text_color=COL["text"], anchor="w").grid(row=1, column=0, sticky="ew", padx=14)
+            ctk.CTkLabel(card, text=desc, font=(READ_FONT, 11), text_color=COL["muted"], anchor="w", justify="left", wraplength=210).grid(row=2, column=0, sticky="ew", padx=14, pady=(4, 14))
 
     def render_matrix(self):
         groups={"최우선 실행":[],"중요한 계획":[],"빠른 처리":[],"나중에 검토":[]}
@@ -479,7 +485,7 @@ class App(ctk.CTk):
         accent = ctk.CTkFrame(card, fg_color=border, width=5, corner_radius=12); accent.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(10, 0), pady=10)
         icon="프로젝트" if n.get("isCustomFolder") else "메모" if n.get("kind")=="memo" else "작업"; title=("완료  " if n.get("completed") else "")+n.get("title","이름 없음")
         head = ctk.CTkFrame(card, fg_color="transparent"); head.grid(row=0, column=1, sticky="ew", padx=14, pady=(12, 2)); head.grid_columnconfigure(0, weight=1)
-        lab=ctk.CTkLabel(head,text=title,font=(FONT,16 if not compact else 13,"bold"),text_color=COL["text"],anchor="w"); lab.grid(row=0,column=0,sticky="ew")
+        lab=ctk.CTkLabel(head,text=title,font=(READ_FONT,16 if not compact else 13,"bold"),text_color=COL["text"],anchor="w"); lab.grid(row=0,column=0,sticky="ew")
         self.pill(head, icon, border).grid(row=0, column=1, sticky="e")
         meta=[]
         if n.get("priority") is not None: meta.append(f"우선 {n.get('priority')}")
@@ -487,7 +493,7 @@ class App(ctk.CTk):
         if n.get("isImportant"): meta.append("중요")
         if self.store.children(nid): meta.append(f"하위 {len(self.store.children(nid))}")
         meta.append(human_time(n.get("createdAt")))
-        ctk.CTkLabel(card,text=" · ".join([x for x in meta if x]),font=SMALL_FONT,text_color=COL["muted"],anchor="w").grid(row=1,column=1,sticky="ew",padx=14,pady=(0,12))
+        ctk.CTkLabel(card,text=" · ".join([x for x in meta if x]),font=(READ_FONT, 11),text_color=COL["muted"],anchor="w").grid(row=1,column=1,sticky="ew",padx=14,pady=(0,12))
         for w in (card,lab):
             w.bind("<Button-1>",lambda e,x=nid:self.select_node(x)); w.bind("<Double-Button-1>",lambda e,x=nid:self.open_node(x)); w.bind("<Button-3>",lambda e,x=nid:self.quick_done(x)); w.bind("<ButtonPress-1>",lambda e,x=nid:self.start_drag(x)); w.bind("<ButtonRelease-1>",self.drop_drag)
 
