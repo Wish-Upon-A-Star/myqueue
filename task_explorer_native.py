@@ -30,11 +30,11 @@ COL = {
     "accent_soft": "#fff3e9",
     "danger": "#c83f49",
     "danger_soft": "#fff0f1",
-    "sidebar": "#0f2235",
-    "sidebar_soft": "#172f49",
-    "sidebar_line": "#294966",
-    "sidebar_text": "#f5f8fb",
-    "sidebar_muted": "#aab7c8",
+    "sidebar": "#eef9ff",
+    "sidebar_soft": "#f8fdff",
+    "sidebar_line": "#d3edf8",
+    "sidebar_text": "#143247",
+    "sidebar_muted": "#5f7c90",
     "memo": "#fff6dd",
     "folder": "#eaf1ff",
     "today": "#e7f5f2",
@@ -47,9 +47,9 @@ COL = {
     "hero": "#fbf8f3",
     "hero_soft": "#fff3e3",
     "hero_line": "#efd8bf",
-    "detail_bg": "#fbfcfd",
-    "detail_panel": "#ffffff",
-    "detail_button": "#e8f2f5",
+    "detail_bg": "#eef8fc",
+    "detail_panel": "#f8fdff",
+    "detail_button": "#dff1f8",
 }
 
 FONT = "Segoe UI Rounded"
@@ -314,7 +314,7 @@ class App(ctk.CTk):
 
     def make_btn(self, parent, text, command, color=None, variant="soft", height=36):
         if variant == "nav":
-            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["sidebar_soft"], hover_color=COL["primary"], text_color=COL["sidebar_text"], height=height, corner_radius=12, font=SMALL_FONT, border_width=1, border_color=COL["sidebar_line"])
+            return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["sidebar_soft"], hover_color="#dff3fb", text_color=COL["sidebar_text"], height=height, corner_radius=12, font=SMALL_FONT, border_width=1, border_color=COL["sidebar_line"])
         if variant == "danger":
             return ctk.CTkButton(parent, text=text, command=command, fg_color=COL["danger_soft"], hover_color="#ffdfe2", text_color=COL["danger"], height=height, corner_radius=12, font=SMALL_FONT)
         if color:
