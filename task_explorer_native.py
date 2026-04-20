@@ -127,29 +127,35 @@ MATRIX_INFO = {
     3: ("\uAE09\uD558\uC9C0\uB3C4 \uC911\uC694\uD558\uC9C0\uB3C4 \uC54A\uC740 \uC77C", "#9aa8b5", "#f4f7fa"),
 }
 ACTIVITY_GROUPS = {
-    "queue": ("작업 큐", "#227c9d", ["taskexplorer", "myqueue"]),
-    "browser": ("브라우저 / 웹", "#4f8bd6", ["chrome", "msedge", "firefox", "whale", "browser"]),
-    "dev": ("개발 / 코딩", "#7667d9", ["code", "devenv", "pycharm", "idea", "cursor", "codex", "terminal", "powershell", "cmd", "python"]),
-    "docs": ("문서 / 메모", "#e0a23b", ["notepad", "winword", "excel", "powerpnt", "onenote", "notion"]),
-    "comm": ("소통", "#41a88a", ["discord", "slack", "teams", "kakaotalk", "telegram", "zoom"]),
-    "media": ("미디어", "#d76f8a", ["spotify", "vlc", "potplayer", "youtube", "photos", "media"]),
-    "system": ("시스템", "#8aa4b8", ["explorer", "taskmgr", "settings", "control"]),
-    "other": ("기타", "#9aa8b5", []),
+    "queue": ("\uc791\uc5c5 \ud050", "#227c9d", ["taskexplorer", "myqueue"]),
+    "browser": ("\ube0c\ub77c\uc6b0\uc800 / \uc6f9", "#4f8bd6", ["chrome", "msedge", "firefox", "whale", "browser"]),
+    "dev": ("\uac1c\ubc1c / \ucf54\ub529", "#7667d9", ["code", "devenv", "pycharm", "idea", "cursor", "codex", "terminal", "powershell", "cmd", "python"]),
+    "docs": ("\ubb38\uc11c / \uba54\ubaa8", "#e0a23b", ["notepad", "winword", "excel", "powerpnt", "onenote", "notion"]),
+    "comm": ("\uc18c\ud1b5", "#41a88a", ["discord", "slack", "teams", "kakaotalk", "telegram", "zoom"]),
+    "media": ("\ubbf8\ub514\uc5b4", "#d76f8a", ["spotify", "vlc", "potplayer", "youtube", "photos", "media"]),
+    "system": ("\uc2dc\uc2a4\ud15c", "#8aa4b8", ["explorer", "taskmgr", "settings", "control"]),
+    "other": ("\uae30\ud0c0", "#9aa8b5", []),
 }
 
-
 def activity_group_for(process_name, window_title="", overrides=None):
-    process_key = (process_name or "").strip().lower()
+    process_raw = (process_name or "").strip()
+    process_key = process_raw.lower()
+    title_key = (window_title or "").strip().lower()
+    haystack = f"{process_key} {title_key}"
     if overrides:
-        custom_label = overrides.get(process_key) or overrides.get((process_name or "").strip())
+        custom_label = overrides.get(process_key) or overrides.get(process_raw)
         if custom_label:
             for key, (label, color, _keywords) in ACTIVITY_GROUPS.items():
                 if custom_label == label:
                     return key, label, color
             palette = ["#227c9d", "#4f8bd6", "#7667d9", "#e0a23b", "#41a88a", "#d76f8a", "#8aa4b8"]
             return "custom-" + re.sub(r"[^a-z0-9]+", "-", custom_label.lower()).strip("-"), custom_label, palette[sum(ord(c) for c in custom_label) % len(palette)]
+    for key, (label, color, keywords) in ACTIVITY_GROUPS.items():
+        if key == "other":
+            continue
+        if any(keyword in haystack for keyword in keywords):
+            return key, label, color
     return "other", ACTIVITY_GROUPS["other"][0], ACTIVITY_GROUPS["other"][1]
-
 
 
 def app_dir():
@@ -649,7 +655,7 @@ class ActivityLog:
         grouped = defaultdict(list)
         for name, title, total, _last_seen in rows:
             if len(grouped[name]) < limit_per_program:
-                grouped[name].append((title or "? ?? ??", int(total or 0)))
+                grouped[name].append((title or "\ucc3d \uc81c\ubaa9 \uc5c6\uc74c", int(total or 0)))
         return grouped
 
     def program_title_details(self, day_key):
@@ -665,7 +671,7 @@ class ActivityLog:
         ).fetchall()
         grouped = defaultdict(list)
         for name, title, total, count, last_seen in rows:
-            grouped[name].append((title or "? ?? ??", int(total or 0), int(count or 0), last_seen or ""))
+            grouped[name].append((title or "\ucc3d \uc81c\ubaa9 \uc5c6\uc74c", int(total or 0), int(count or 0), last_seen or ""))
         return grouped
 
     def hourly_summary(self, day_key):
@@ -1594,7 +1600,7 @@ class App(ctk.CTk):
         today = datetime.now().strftime("%Y-%m-%d")
         total = self.activity_log.total_seconds(today)
         status = "?? ?" if self.activity_running else "?? ??"
-        labels = {"timeline": "?? ??", "group": "???", "program": "?????", "hour": "???"}
+        labels = {"timeline": "\ud558\ub8e8 \ud750\ub984", "group": "\ubd84\ub958\ubcc4", "program": "\ud504\ub85c\uadf8\ub7a8\ubcc4", "hour": "\uc2dc\uac04\ubcc4"}
         mode_label = labels.get(self.activity_view, "?? ??")
         group_overrides = self.activity_group_overrides()
 
@@ -1624,7 +1630,7 @@ class App(ctk.CTk):
             bind_click(tag, lambda x=label: self.set_activity_group_filter(x))
 
         def empty_message(y_pos):
-            self.cards.create_text(34, y_pos, text="?? ??? ??? ????. ? ????? ?? ??? ????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
+            self.cards.create_text(34, y_pos, text="\uc544\uc9c1 \uae30\ub85d\ub41c \ud65c\ub3d9\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \uc704 \uc870\uc791\uc904\uc5d0\uc11c \uae30\ub85d \uc2dc\uc791\uc744 \ub204\ub974\uc138\uc694.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
 
         def parse_day_seconds(value):
             try:
@@ -1658,7 +1664,7 @@ class App(ctk.CTk):
         self.cards.create_rectangle(12, 12, width - 12, 118, fill="#ffffff", outline=COL["line"], width=1, tags=("activity",))
         self.cards.create_text(34, 30, text="?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 18, "bold"), tags=("activity",))
         self.cards.create_text(34, 62, text=f"{today} ? {status} ? ?? ?? {format_duration(total)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 10), tags=("activity",))
-        self.cards.create_text(34, 88, text="??? ?? ??? ? ?? ??, ??? ? ????/???? ??? ?????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+        self.cards.create_text(34, 88, text="\uae30\ubcf8\uc740 \uc804\uccb4 \ud750\ub984\uc744 \ud55c \uc904\ub85c \ubcf4\uace0, \ud544\uc694\ud560 \ub54c \ud504\ub85c\uadf8\ub7a8/\ubd84\ub958\ubcc4\ub85c \ud3bc\uccd0\uc11c \ud655\uc778\ud569\ub2c8\ub2e4.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
         self.cards.create_rectangle(width - 170, 36, width - 34, 72, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity",))
         self.cards.create_text(width - 150, 46, text=mode_label, anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("activity",))
         y = 144
@@ -1687,7 +1693,7 @@ class App(ctk.CTk):
                     if key not in seen:
                         seen.add(key)
                         lanes.append((key, label, color))
-                self.cards.create_text(34, y, text="??? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                self.cards.create_text(34, y, text="\ubd84\ub958\ubcc4 \ud750\ub984", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
                 y += 34
                 lane_y = {}
                 for idx, (key, label, color) in enumerate(lanes):
@@ -1740,7 +1746,7 @@ class App(ctk.CTk):
                 rows = [row for row in rows if row[1] == self.activity_group_filter]
             max_total = max([row[3] for row in rows] or [1])
             if not rows:
-                self.cards.create_text(34, y, text="? ??? ??? ??? ????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
+                self.cards.create_text(34, y, text="\uc774 \uadf8\ub8f9\uc5d0 \ud45c\uc2dc\ud560 \ud65c\ub3d9\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
             for key, label, color, seconds, count, programs, titles in rows:
                 row_h = 72 + min(3, len(programs)) * 18
                 self.cards.create_rectangle(24, y, width - 24, y + row_h - 10, fill="#ffffff", outline=COL["line"], tags=("activity",))
@@ -1779,7 +1785,7 @@ class App(ctk.CTk):
                 self.cards.create_text(width - 190, y0 + 12, text=f"{format_duration(seconds)} ? {count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
                 bar_w = int((width - 350) * (seconds / max_total)) if max_total else 0
                 self.cards.create_rectangle(54, y0 + 38, 54 + max(4, bar_w), y0 + 43, fill=group_color, outline=group_color, tags=("activity", row_tag))
-                self.cards.create_text(54, y0 + 50, text="???? ? ?????? ?? ? ??? ?????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
+                self.cards.create_text(54, y0 + 50, text="\ud074\ub9ad\ud558\uba74 \uc774 \ud504\ub85c\uadf8\ub7a8\uc5d0\uc11c \uc5f4\ub9b0 \ucc3d \uc81c\ubaa9\uc744 \ud3bc\uccd0\ubd05\ub2c8\ub2e4.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
                 bind_click(row_tag, lambda n=name: toggle_program(n))
                 activity_group_button(row_tag, button_tag, width - 300, y0 + 42, name)
                 sy = y0 + 72
