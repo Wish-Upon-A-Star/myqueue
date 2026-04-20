@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import sys
 import ctypes
+import traceback
 import unicodedata
 import uuid
 from collections import defaultdict
@@ -164,6 +165,20 @@ def app_dir():
         path.mkdir(parents=True, exist_ok=True)
         return path
     return Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+
+
+def write_startup_error(message):
+    try:
+        log_path = app_dir() / "TaskExplorer-startup-error.log"
+        log_path.write_text(message, encoding="utf-8")
+        return log_path
+    except Exception:
+        try:
+            fallback = Path.home() / "TaskExplorer-startup-error.log"
+            fallback.write_text(message, encoding="utf-8")
+            return fallback
+        except Exception:
+            return None
 
 
 def now_iso():
@@ -831,7 +846,7 @@ class App(ctk.CTk):
         self.withdraw()
         self.title(APP_TITLE); self.minsize(900, 640); self.apply_start_geometry(); self.configure(fg_color=COL["bg"])
         if self.ui_state.get("zoomed"):
-            self.after(80, lambda: self.state("zoomed"))
+            self.after(80, self.safe_zoomed)
         self.current_parent = ROOT_ID; self.selected_id = None; self.view_mode = self.ui_state.get("viewMode", "all"); self.kind_filter = "all"
         self.current_list_id = None; self.current_date = None; self.current_date_mode = None; self.date_filter = "created"; self.drag_source = None; self.drag_start_x = 0; self.drag_start_y = 0; self.drag_last_target = None; self.drag_last_after = False; self.drop_targets = {}; self.folder_ids = []; self.paste_open = False; self.left_panel_open = bool(self.ui_state.get("leftPanelOpen", True)); self.right_panel_open = bool(self.ui_state.get("rightPanelOpen", False)); self.tools_open = False; self.side_section_open = dict(self.ui_state.get("sideSectionOpen", {"lists": True, "folders": True, "files": False})); self.right_section_open = dict(self.ui_state.get("rightSectionOpen", {"views": True, "dates": False, "activity": True, "memo": True}))
         self.activity_running = bool(self.ui_state.get("activityRunning", False))
@@ -862,10 +877,39 @@ class App(ctk.CTk):
         self.bind_all("<MouseWheel>", self.fast_mousewheel, add="+")
         self.bind_all("<B1-Motion>", self.drag_motion, add="+")
         self.bind_all("<ButtonRelease-1>", self.finish_drag, add="+")
-        self.after(20, self.deiconify)
+        self.after(20, self.show_start_window)
         self.after(800, self.refresh_side)
         if self.activity_running:
             self.after(1000, self.poll_activity)
+
+    def report_callback_exception(self, exc, value, tb):
+        detail = "".join(traceback.format_exception(exc, value, tb))
+        write_startup_error(detail)
+        try:
+            messagebox.showerror("TaskExplorer 오류", f"실행 중 오류가 발생했습니다.\n\n{detail[:1200]}")
+        except Exception:
+            pass
+
+    def safe_zoomed(self):
+        try:
+            self.state("zoomed")
+        except Exception:
+            try:
+                self.attributes("-zoomed", True)
+            except Exception:
+                pass
+
+    def show_start_window(self):
+        try:
+            self.deiconify()
+            self.update_idletasks()
+            self.lift()
+            self.focus_force()
+            if sys.platform == "darwin":
+                self.attributes("-topmost", True)
+                self.after(350, lambda: self.attributes("-topmost", False))
+        except Exception:
+            pass
 
     def make_btn(self, parent, text, command, color=None, variant="soft", height=36):
         if variant == "nav":
@@ -2888,5 +2932,22 @@ class App(ctk.CTk):
         self.activity_log.conn.close()
         self.save_window_state(); self.store.save(); self.destroy()
 
+def main():
+    try:
+        App().mainloop()
+    except Exception:
+        detail = traceback.format_exc()
+        log_path = write_startup_error(detail)
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            suffix = f"\n\n로그: {log_path}" if log_path else ""
+            messagebox.showerror("TaskExplorer 시작 실패", f"앱을 시작하지 못했습니다.{suffix}\n\n{detail[:1200]}")
+            root.destroy()
+        except Exception:
+            pass
+        raise
+
+
 if __name__ == "__main__":
-    App().mainloop()
+    main()
