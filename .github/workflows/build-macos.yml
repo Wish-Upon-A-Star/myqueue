@@ -1,0 +1,66 @@
+name: Build macOS app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate project
+        id: locate
+        shell: bash
+        run: |
+          if [[ -f task_explorer_native.py ]]; then
+            echo "project_dir=." >> "$GITHUB_OUTPUT"
+          elif [[ -f myqueue/task_explorer_native.py ]]; then
+            echo "project_dir=myqueue" >> "$GITHUB_OUTPUT"
+          else
+            echo "task_explorer_native.py not found" >&2
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          cd "${{ steps.locate.outputs.project_dir }}"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build app
+        shell: bash
+        run: |
+          cd "${{ steps.locate.outputs.project_dir }}"
+          pyinstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          app = Path('dist/TaskExplorer.app')
+          if not app.exists():
+              raise SystemExit('dist/TaskExplorer.app was not created')
+          out = Path('dist/TaskExplorer-macos.zip')
+          if out.exists():
+              out.unlink()
+          with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
+              for path in app.rglob('*'):
+                  z.write(path, path.relative_to(app.parent))
+          PY
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskExplorer-macos
+          path: ${{ steps.locate.outputs.project_dir }}/dist/TaskExplorer-macos.zip

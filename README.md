@@ -1,4 +1,4 @@
-﻿# 작업 큐 탐색기
+# 작업 큐 탐색기
 
 Windows에서 바로 실행하는 개인용 작업 큐/메모 프로그램입니다.
 
@@ -86,7 +86,7 @@ Python이 있으면 소스 상태로 실행할 수 있습니다.
 python task_explorer_native.py
 ```
 
-## exe 다시 만들기
+## Windows exe 다시 만들기
 
 Python 3.14 기준으로 확인했습니다.
 
@@ -102,12 +102,46 @@ python -m venv .venv
 dist/TaskExplorer.exe
 ```
 
+## macOS 앱 만들기
+
+Windows에서는 macOS용 `.app`를 직접 만들 수 없습니다. macOS에서 아래 스크립트를 실행하거나, GitHub Actions의 `Build macOS app` 워크플로를 실행해야 합니다.
+
+macOS에서 직접 빌드:
+
+```bash
+chmod +x build_macos.sh
+./build_macos.sh
+```
+
+결과:
+
+```text
+dist/TaskExplorer.app
+dist/TaskExplorer-macos.zip
+```
+
+GitHub Actions에서 빌드:
+
+1. 저장소의 Actions 탭으로 이동
+2. `Build macOS app` 선택
+3. `Run workflow` 실행
+4. 완료 후 `TaskExplorer-macos` 아티팩트 다운로드
+
+macOS 빌드의 데이터 저장 위치:
+
+```text
+~/Library/Application Support/TaskExplorer/task-explorer-state.json
+~/Library/Application Support/TaskExplorer/activity-log.db
+```
+
 ## 파일 구성
 
 ```text
 dist/TaskExplorer/          권장 실행 폴더
 dist/TaskExplorer.exe       이전 단일 exe
 task_explorer_native.py     customtkinter 네이티브 앱 소스
+build_macos.sh              macOS 앱 빌드 스크립트
+.github/workflows/build-macos.yml GitHub Actions macOS 빌드
 legacy/task_explorer.html   이전 HTML 버전 백업
 ```
 

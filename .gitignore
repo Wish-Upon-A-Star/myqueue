@@ -1,6 +1,13 @@
-﻿__pycache__/
+__pycache__/
 .venv/
+.buildvenv*/
 build/
 *.spec
 *.log
 .DS_Store
+release/
+*.zip
+*.png
+.tmp-*
+dist/TaskExplorer/task-explorer-state.json
+dist/TaskExplorer/activity-log.db
