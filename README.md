@@ -57,9 +57,12 @@ TaskExplorer-macos-arm64.zip
 최신 macOS 배포본은 앱 시작 과정을 로그 파일로 남깁니다. 터미널에서 실행해도 아무 출력이 없으면 아래 파일을 확인하세요.
 
 ```bash
+cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-launcher.log
 cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
 cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-startup-error.log
 ```
+
+`TaskExplorer-launcher.log`는 앱 번들이 눌렸는지, 실제 실행 파일까지 넘어갔는지 확인하는 가장 앞단 로그입니다.
 
 정상적으로 앱이 창을 띄우기 직전까지 갔다면 `TaskExplorer-boot.log`에 `mainloop start`가 기록됩니다.
 
@@ -67,6 +70,7 @@ cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-startup-error.log
 
 ```bash
 ./TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
+cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-launcher.log
 cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
 ```
 

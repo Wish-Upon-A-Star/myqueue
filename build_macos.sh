@@ -18,6 +18,7 @@ pip install -r requirements.txt
 
 rm -rf build "dist/${APP_NAME}.app" "dist/${APP_NAME}-macos.zip"
 pyinstaller --noconfirm --windowed --name "$APP_NAME" task_explorer_native.py
+bash scripts/install_macos_launcher_wrapper.sh "dist/${APP_NAME}.app" "$APP_NAME"
 
 if [[ ! -d "dist/${APP_NAME}.app" ]]; then
   echo "Build failed: dist/${APP_NAME}.app was not created."

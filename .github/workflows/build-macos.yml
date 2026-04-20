@@ -53,8 +53,11 @@ jobs:
         run: |
           cd "${{ steps.locate.outputs.project_dir }}"
           pyinstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
+          bash scripts/install_macos_launcher_wrapper.sh dist/TaskExplorer.app TaskExplorer
           file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer
+          file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer.bin
           ./dist/TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
+          cat "$HOME/Library/Application Support/TaskExplorer/TaskExplorer-launcher.log" || true
           cat "$HOME/Library/Application Support/TaskExplorer/TaskExplorer-boot.log" || true
           python - <<'PY'
           from pathlib import Path
