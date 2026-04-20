@@ -649,7 +649,23 @@ class ActivityLog:
         grouped = defaultdict(list)
         for name, title, total, _last_seen in rows:
             if len(grouped[name]) < limit_per_program:
-                grouped[name].append((title or "창 제목 없음", int(total or 0)))
+                grouped[name].append((title or "? ?? ??", int(total or 0)))
+        return grouped
+
+    def program_title_details(self, day_key):
+        rows = self.conn.execute(
+            """
+            SELECT process_name, window_title, SUM(duration_seconds) AS total, COUNT(*) AS count, MAX(started_at) AS last_seen
+            FROM sessions
+            WHERE substr(started_at, 1, 10)=?
+            GROUP BY process_name, window_title
+            ORDER BY process_name ASC, total DESC, last_seen DESC
+            """,
+            (day_key,),
+        ).fetchall()
+        grouped = defaultdict(list)
+        for name, title, total, count, last_seen in rows:
+            grouped[name].append((title or "? ?? ??", int(total or 0), int(count or 0), last_seen or ""))
         return grouped
 
     def hourly_summary(self, day_key):
@@ -816,6 +832,7 @@ class App(ctk.CTk):
         self.activity_log_titles = bool(self.ui_state.get("activityLogTitles", True))
         self.activity_view = self.ui_state.get("activityView", "timeline")
         self.activity_group_filter = self.ui_state.get("activityGroupFilter", "all")
+        self.activity_expanded_programs = set()
         self.activity_poll_after_id = None
         self.active_scroll = None
         self.fit_after_id = None
@@ -1576,107 +1593,138 @@ class App(ctk.CTk):
         height = max(560, self.cards.winfo_height())
         today = datetime.now().strftime("%Y-%m-%d")
         total = self.activity_log.total_seconds(today)
-        status = "기록 중" if self.activity_running else "기록 중지"
-        labels = {"timeline": "하루 흐름", "group": "분류별 보기", "program": "프로그램별 보기", "hour": "시간별 보기"}
-        mode_label = labels.get(self.activity_view, "하루 흐름")
-        self.cards.create_rectangle(12, 12, width - 12, 118, fill="#ffffff", outline=COL["line"], width=1, tags=("activity",))
-        self.cards.create_text(34, 30, text="활동 기록", anchor="nw", fill=COL["text"], font=(READ_FONT, 18, "bold"), tags=("activity",))
-        self.cards.create_text(34, 62, text=f"{today} · {status} · 오늘 기록 {format_duration(total)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 10), tags=("activity",))
-        self.cards.create_text(34, 88, text="프로그램명, 창 제목, 그룹을 함께 저장하고 하루 흐름으로 다시 볼 수 있습니다.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
-        self.cards.create_rectangle(width - 170, 36, width - 34, 72, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity",))
-        self.cards.create_text(width - 150, 46, text=mode_label, anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("activity",))
-        y = 144
+        status = "?? ?" if self.activity_running else "?? ??"
+        labels = {"timeline": "?? ??", "group": "???", "program": "?????", "hour": "???"}
+        mode_label = labels.get(self.activity_view, "?? ??")
         group_overrides = self.activity_group_overrides()
 
-        def bind_activity_action(tag, process_name):
-            self.cards.tag_bind(tag, "<Button-1>", lambda e, p=process_name: (self.show_activity_group_popup(p), "break")[-1])
+        def bind_click(tag, callback):
+            self.cards.tag_bind(tag, "<Button-1>", lambda e: (callback(), "break")[-1])
             self.cards.tag_bind(tag, "<Enter>", lambda e: self.cards.configure(cursor="hand2"))
             self.cards.tag_bind(tag, "<Leave>", lambda e: self.cards.configure(cursor=""))
 
+        def toggle_program(name):
+            if name in self.activity_expanded_programs:
+                self.activity_expanded_programs.remove(name)
+            else:
+                self.activity_expanded_programs.add(name)
+            self.render_activity_board()
+
+        def bind_activity_action(tag, process_name):
+            bind_click(tag, lambda p=process_name: self.show_activity_group_popup(p))
+
         def activity_group_button(row_tag, button_tag, x1, y1, process_name):
-            self.cards.create_rectangle(x1, y1, x1 + 86, y1 + 26, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity", row_tag, button_tag), state="hidden")
-            self.cards.create_text(x1 + 43, y1 + 7, text="그룹 지정", anchor="n", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag, button_tag), state="hidden")
+            self.cards.create_rectangle(x1, y1, x1 + 94, y1 + 28, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity", row_tag, button_tag), state="hidden")
+            self.cards.create_text(x1 + 47, y1 + 8, text="?? ??", anchor="n", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag, button_tag), state="hidden")
             self.cards.tag_bind(row_tag, "<Enter>", lambda e, t=button_tag: self.cards.itemconfigure(t, state="normal"))
             self.cards.tag_bind(row_tag, "<Leave>", lambda e, t=button_tag: self.cards.itemconfigure(t, state="hidden"))
             bind_activity_action(button_tag, process_name)
 
         def bind_group_filter(tag, label):
-            self.cards.tag_bind(tag, "<Button-1>", lambda e, x=label: (self.set_activity_group_filter(x), "break")[-1])
-            self.cards.tag_bind(tag, "<Enter>", lambda e: self.cards.configure(cursor="hand2"))
-            self.cards.tag_bind(tag, "<Leave>", lambda e: self.cards.configure(cursor=""))
+            bind_click(tag, lambda x=label: self.set_activity_group_filter(x))
 
-        def empty_message():
-            self.cards.create_text(34, y, text="아직 기록된 활동이 없습니다. 위 조작줄에서 기록 시작을 누르세요.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
+        def empty_message(y_pos):
+            self.cards.create_text(34, y_pos, text="?? ??? ??? ????. ? ????? ?? ??? ????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
+
+        def parse_day_seconds(value):
+            try:
+                dt = datetime.fromisoformat(value)
+            except Exception:
+                return None
+            day_start = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            return max(0, min(24 * 3600, int((dt - day_start).total_seconds())))
+
+        def draw_timeline_scale(left, right, top, bottom):
+            timeline_w = max(1, right - left)
+            for hour in range(0, 25, 3):
+                x = left + int(timeline_w * hour / 24)
+                self.cards.create_line(x, top, x, bottom, fill="#dceaf1", tags=("activity",))
+                self.cards.create_text(x, top - 4, text=f"{hour:02d}", anchor="s", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
+
+        def draw_session_bar(left, right, y_pos, started, ended, seconds, color, label=""):
+            s = parse_day_seconds(started)
+            e = parse_day_seconds(ended)
+            if s is None or e is None:
+                return
+            e = max(s + max(60, int(seconds or 0)), e)
+            e = min(24 * 3600, e)
+            timeline_w = max(1, right - left)
+            x1 = left + int(timeline_w * s / (24 * 3600))
+            x2 = max(x1 + 4, left + int(timeline_w * e / (24 * 3600)))
+            self.cards.create_rectangle(x1, y_pos, x2, y_pos + 18, fill=color, outline=color, tags=("activity",))
+            if label and x2 - x1 > 82:
+                self.cards.create_text(x1 + 5, y_pos + 2, text=label, anchor="nw", fill="white", font=(READ_FONT, 7, "bold"), tags=("activity",))
+
+        self.cards.create_rectangle(12, 12, width - 12, 118, fill="#ffffff", outline=COL["line"], width=1, tags=("activity",))
+        self.cards.create_text(34, 30, text="?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 18, "bold"), tags=("activity",))
+        self.cards.create_text(34, 62, text=f"{today} ? {status} ? ?? ?? {format_duration(total)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 10), tags=("activity",))
+        self.cards.create_text(34, 88, text="??? ?? ??? ? ?? ??, ??? ? ????/???? ??? ?????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+        self.cards.create_rectangle(width - 170, 36, width - 34, 72, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity",))
+        self.cards.create_text(width - 150, 46, text=mode_label, anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("activity",))
+        y = 144
 
         if self.activity_view == "timeline":
             sessions = self.activity_log.sessions_for_day(today)
             if not sessions:
-                empty_message()
+                empty_message(y)
             else:
-                left = 94
+                left = 112
                 right = width - 34
-                timeline_w = max(360, right - left)
-                top = y + 28
-                lane_h = 42
+                top = y + 36
+                self.cards.create_text(34, y, text="?? ?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 13, "bold"), tags=("activity",))
+                self.cards.create_text(34, y + 26, text="??", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
+                self.cards.create_rectangle(left, top, right, top + 18, fill="#ffffff", outline=COL["line"], tags=("activity",))
+                draw_timeline_scale(left, right, top - 18, top + 22)
+                for started, ended, seconds, name, title in sessions:
+                    _key, _label, color = activity_group_for(name, title, group_overrides)
+                    draw_session_bar(left, right, top, started, ended, seconds, color, name.replace(".exe", ""))
+
+                y = top + 52
                 lanes = []
                 seen = set()
                 for started, ended, seconds, name, title in sessions:
                     key, label, color = activity_group_for(name, title, group_overrides)
                     if key not in seen:
-                        seen.add(key); lanes.append((key, label, color))
-                self.cards.create_text(34, y, text="오늘 하루 흐름", anchor="nw", fill=COL["text"], font=(READ_FONT, 13, "bold"), tags=("activity",))
-                for hour in range(0, 25, 3):
-                    x = left + int(timeline_w * hour / 24)
-                    self.cards.create_line(x, top - 22, x, top + lane_h * len(lanes) + 18, fill="#dceaf1", tags=("activity",))
-                    self.cards.create_text(x, top - 22, text=f"{hour:02d}", anchor="s", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
+                        seen.add(key)
+                        lanes.append((key, label, color))
+                self.cards.create_text(34, y, text="??? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                y += 34
                 lane_y = {}
                 for idx, (key, label, color) in enumerate(lanes):
-                    yy = top + idx * lane_h
+                    yy = y + idx * 34
                     lane_y[key] = yy
-                    self.cards.create_text(34, yy + 9, text=label, anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), width=56, tags=("activity",))
-                    self.cards.create_rectangle(left, yy + 8, right, yy + 30, fill="#ffffff", outline=COL["line"], tags=("activity",))
+                    self.cards.create_text(34, yy + 3, text=label, anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), width=70, tags=("activity",))
+                    self.cards.create_rectangle(left, yy, right, yy + 18, fill="#ffffff", outline=COL["line"], tags=("activity",))
                 for started, ended, seconds, name, title in sessions:
-                    try:
-                        sdt = datetime.fromisoformat(started); edt = datetime.fromisoformat(ended)
-                    except Exception:
-                        continue
-                    day_start = sdt.replace(hour=0, minute=0, second=0, microsecond=0)
-                    s = max(0, int((sdt - day_start).total_seconds()))
-                    e = max(s + max(60, seconds), int((edt - day_start).total_seconds()))
-                    e = min(24 * 3600, e)
                     key, label, color = activity_group_for(name, title, group_overrides)
-                    yy = lane_y.get(key, top)
-                    x1 = left + int(timeline_w * s / (24 * 3600))
-                    x2 = max(x1 + 4, left + int(timeline_w * e / (24 * 3600)))
-                    self.cards.create_rectangle(x1, yy + 9, x2, yy + 29, fill=color, outline=color, tags=("activity",))
-                    if x2 - x1 > 70:
-                        self.cards.create_text(x1 + 5, yy + 12, text=name.replace(".exe", ""), anchor="nw", fill="white", font=(READ_FONT, 7, "bold"), tags=("activity",))
-                y = top + lane_h * len(lanes) + 42
-                self.cards.create_text(34, y, text="최근 흐름", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                    draw_session_bar(left, right, lane_y.get(key, y), started, ended, seconds, color)
+
+                y += max(1, len(lanes)) * 34 + 22
+                self.cards.create_text(34, y, text="?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
                 y += 30
-                recent_sessions = sessions[-6:]
-                if len(sessions) > 6:
-                    self.cards.create_text(width - 210, y - 28, text=f"최근 6개만 표시 · 전체 {len(sessions)}개", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
+                recent_sessions = sessions[-8:]
+                if len(sessions) > 8:
+                    self.cards.create_text(width - 230, y - 28, text=f"?? 8?? ?? ? ?? {len(sessions)}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
                 for started, ended, seconds, name, title in recent_sessions:
                     key, label, color = activity_group_for(name, title, group_overrides)
-                    self.cards.create_rectangle(34, y, width - 24, y + 38, fill="#ffffff", outline=COL["line"], tags=("activity",))
-                    self.cards.create_rectangle(44, y + 9, 50, y + 29, fill=color, outline=color, tags=("activity",))
-                    self.cards.create_text(60, y + 9, text=f"{started[11:16]}-{ended[11:16]}  {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
-                    self.cards.create_text(250, y + 9, text=f"{name} · {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 420), tags=("activity",))
-                    self.cards.create_text(width - 120, y + 9, text=format_duration(seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
-                    y += 44
+                    self.cards.create_rectangle(34, y, width - 24, y + 40, fill="#ffffff", outline=COL["line"], tags=("activity",))
+                    self.cards.create_rectangle(44, y + 9, 50, y + 31, fill=color, outline=color, tags=("activity",))
+                    self.cards.create_text(60, y + 8, text=f"{started[11:16]}-{ended[11:16]}  {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
+                    self.cards.create_text(250, y + 8, text=f"{name} ? {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 430), tags=("activity",))
+                    self.cards.create_text(width - 122, y + 8, text=format_duration(seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
+                    y += 46
 
         elif self.activity_view == "group":
             rows = self.activity_log.group_summary(today, group_overrides)
             if not rows:
-                empty_message()
+                empty_message(y)
             filter_labels = ["all"]
             for row in rows:
                 if row[1] not in filter_labels:
                     filter_labels.append(row[1])
             chip_x = 34
             for idx, label in enumerate(filter_labels):
-                text = "전체" if label == "all" else label
+                text = "??" if label == "all" else label
                 active = self.activity_group_filter == label or (label == "all" and self.activity_group_filter == "all")
                 tag = f"activity-filter-{idx}"
                 chip_w = max(70, min(150, 18 + len(text) * 10))
@@ -1692,18 +1740,18 @@ class App(ctk.CTk):
                 rows = [row for row in rows if row[1] == self.activity_group_filter]
             max_total = max([row[3] for row in rows] or [1])
             if not rows:
-                self.cards.create_text(34, y, text="이 그룹에 표시할 활동이 없습니다.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
+                self.cards.create_text(34, y, text="? ??? ??? ??? ????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 12), tags=("activity",))
             for key, label, color, seconds, count, programs, titles in rows:
                 row_h = 72 + min(3, len(programs)) * 18
                 self.cards.create_rectangle(24, y, width - 24, y + row_h - 10, fill="#ffffff", outline=COL["line"], tags=("activity",))
                 self.cards.create_rectangle(38, y + 14, 46, y + row_h - 24, fill=color, outline=color, tags=("activity",))
                 self.cards.create_text(58, y + 12, text=label, anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
-                self.cards.create_text(width - 200, y + 12, text=f"{format_duration(seconds)} · {count}회", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+                self.cards.create_text(width - 200, y + 12, text=f"{format_duration(seconds)} ? {count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
                 bar_w = int((width - 330) * (seconds / max_total)) if max_total else 0
                 self.cards.create_rectangle(58, y + 38, 58 + max(4, bar_w), y + 43, fill=color, outline=color, tags=("activity",))
                 sy = y + 52
                 for pname, pseconds in programs:
-                    self.cards.create_text(64, sy, text=f"- {pname} · {format_duration(pseconds)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+                    self.cards.create_text(64, sy, text=f"- {pname} ? {format_duration(pseconds)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
                     sy += 18
                 if titles:
                     self.cards.create_text(310, y + 52, text=" / ".join(titles), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), width=max(220, width - 520), tags=("activity",))
@@ -1711,37 +1759,43 @@ class App(ctk.CTk):
 
         elif self.activity_view == "program":
             rows = self.activity_log.program_summary(today)
-            title_samples = self.activity_log.program_title_samples(today)
+            title_samples = self.activity_log.program_title_details(today)
             if not rows:
-                empty_message()
+                empty_message(y)
             max_total = max([sec for _, sec, _ in rows] or [1])
             for idx, (name, seconds, count) in enumerate(rows):
-                samples = title_samples.get(name, [])
-                key, group_label, group_color = activity_group_for(name, samples[0][0] if samples else "", group_overrides)
-                row_h = 60 + min(3, len(samples)) * 18
+                titles = title_samples.get(name, [])
+                is_open = name in self.activity_expanded_programs
+                visible_titles = titles if is_open else titles[:3]
+                key, group_label, group_color = activity_group_for(name, titles[0][0] if titles else "", group_overrides)
+                row_h = 72 + len(visible_titles) * 24 + (20 if (not is_open and len(titles) > 3) else 0)
                 y0 = y
                 row_tag = f"activity-program-row-{idx}"
                 button_tag = f"activity-program-group-{idx}"
                 self.cards.create_rectangle(24, y0, width - 24, y0 + row_h - 10, fill="#ffffff", outline=COL["line"], width=1, tags=("activity", row_tag))
                 self.cards.create_rectangle(36, y0 + 14, 42, y0 + row_h - 24, fill=group_color, outline=group_color, tags=("activity", row_tag))
-                self.cards.create_text(52, y0 + 12, text=name, anchor="nw", fill=COL["text"], font=(READ_FONT, 11, "bold"), tags=("activity", row_tag))
-                self.cards.create_text(220, y0 + 13, text=group_label, anchor="nw", fill=group_color, font=(READ_FONT, 9, "bold"), tags=("activity", row_tag))
-                self.cards.create_text(width - 190, y0 + 12, text=f"{format_duration(seconds)} · {count}회", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
-                activity_group_button(row_tag, button_tag, width - 292, y0 + 8, name)
-                sy = y0 + 38
-                for title, title_seconds in samples:
-                    self.cards.create_text(64, sy, text=f"- {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 360), tags=("activity", row_tag))
-                    self.cards.create_text(width - 190, sy, text=format_duration(title_seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
-                    sy += 18
-                bar_w = int((width - 330) * (seconds / max_total)) if max_total else 0
-                self.cards.create_rectangle(52, y0 + row_h - 22, 52 + max(4, bar_w), y0 + row_h - 18, fill=group_color, outline=group_color, tags=("activity", row_tag))
+                self.cards.create_text(54, y0 + 12, text=("? " if is_open else "? ") + name, anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity", row_tag))
+                self.cards.create_text(230, y0 + 14, text=group_label, anchor="nw", fill=group_color, font=(READ_FONT, 9, "bold"), tags=("activity", row_tag))
+                self.cards.create_text(width - 190, y0 + 12, text=f"{format_duration(seconds)} ? {count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
+                bar_w = int((width - 350) * (seconds / max_total)) if max_total else 0
+                self.cards.create_rectangle(54, y0 + 38, 54 + max(4, bar_w), y0 + 43, fill=group_color, outline=group_color, tags=("activity", row_tag))
+                self.cards.create_text(54, y0 + 50, text="???? ? ?????? ?? ? ??? ?????.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
+                bind_click(row_tag, lambda n=name: toggle_program(n))
+                activity_group_button(row_tag, button_tag, width - 300, y0 + 42, name)
+                sy = y0 + 72
+                for title, title_seconds, title_count, last_seen in visible_titles:
+                    self.cards.create_text(66, sy, text=f"- {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(260, width - 370), tags=("activity", row_tag))
+                    self.cards.create_text(width - 190, sy, text=f"{format_duration(title_seconds)} ? {title_count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
+                    sy += 24
+                if not is_open and len(titles) > 3:
+                    self.cards.create_text(66, sy, text=f"? {len(titles) - 3}? ? ??", anchor="nw", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag))
                 y += row_h
         else:
             grouped = self.activity_log.hourly_sessions(today)
             if not grouped:
-                empty_message()
+                empty_message(y)
             for hour in sorted(grouped):
-                self.cards.create_text(34, y, text="최근 흐름", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                self.cards.create_text(34, y, text=f"{hour}?", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
                 y += 28
                 for idx, (started, ended, name, title, seconds) in enumerate(grouped[hour][:10]):
                     key, label, color = activity_group_for(name, title, group_overrides)
@@ -1749,7 +1803,7 @@ class App(ctk.CTk):
                     button_tag = f"activity-hour-group-{hour}-{idx}"
                     self.cards.create_rectangle(44, y, width - 34, y + 46, fill="#ffffff", outline=COL["line"], width=1, tags=("activity", row_tag))
                     self.cards.create_rectangle(54, y + 10, 60, y + 36, fill=color, outline=color, tags=("activity", row_tag))
-                    self.cards.create_text(70, y + 7, text=f"{started}-{ended}  {name} · {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 10, "bold"), tags=("activity", row_tag))
+                    self.cards.create_text(70, y + 7, text=f"{started}-{ended}  {name} ? {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 10, "bold"), tags=("activity", row_tag))
                     self.cards.create_text(70, y + 26, text=title, anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 360), tags=("activity", row_tag))
                     self.cards.create_text(width - 160, y + 10, text=format_duration(seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
                     activity_group_button(row_tag, button_tag, width - 260, y + 10, name)
