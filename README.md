@@ -52,6 +52,26 @@ TaskExplorer-macos-arm64.zip
 
 아키텍처가 맞지 않는 앱을 실행하면 Dock 아이콘만 잠깐 뜨고 창이 안 뜬 채 종료될 수 있습니다.
 
+## macOS에서 창이 안 뜨고 바로 꺼지는 경우
+
+최신 macOS 배포본은 앱 시작 과정을 로그 파일로 남깁니다. 터미널에서 실행해도 아무 출력이 없으면 아래 파일을 확인하세요.
+
+```bash
+cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
+cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-startup-error.log
+```
+
+정상적으로 앱이 창을 띄우기 직전까지 갔다면 `TaskExplorer-boot.log`에 `mainloop start`가 기록됩니다.
+
+문제가 계속되면 아래 명령으로 실행 환경만 먼저 확인할 수 있습니다.
+
+```bash
+./TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
+cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
+```
+
+`--smoke-test`는 창을 띄우지 않고 앱 저장 폴더, Python/Tk 실행 가능 여부만 확인합니다.
+
 ## macOS에서 "손상되었기 때문에 열 수 없음" 또는 바로 삭제되는 경우
 
 이 앱은 아직 Apple 개발자 서명과 공증을 받지 않았습니다. 그래서 macOS Gatekeeper가 다운로드한 앱에 붙은 격리 속성 때문에 실행을 막을 수 있습니다.
