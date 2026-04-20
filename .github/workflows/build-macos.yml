@@ -7,7 +7,15 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: intel
+          - runner: macos-latest
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     defaults:
       run:
         working-directory: .
@@ -45,22 +53,27 @@ jobs:
         run: |
           cd "${{ steps.locate.outputs.project_dir }}"
           pyinstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
+          file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer
           python - <<'PY'
           from pathlib import Path
           import zipfile
+          import os
           app = Path('dist/TaskExplorer.app')
           if not app.exists():
               raise SystemExit('dist/TaskExplorer.app was not created')
-          out = Path('dist/TaskExplorer-macos.zip')
+          arch = os.environ.get('TASK_EXPLORER_ARCH', 'macos')
+          out = Path(f'dist/TaskExplorer-macos-{arch}.zip')
           if out.exists():
               out.unlink()
           with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
               for path in app.rglob('*'):
                   z.write(path, path.relative_to(app.parent))
           PY
+        env:
+          TASK_EXPLORER_ARCH: ${{ matrix.arch }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TaskExplorer-macos
-          path: ${{ steps.locate.outputs.project_dir }}/dist/TaskExplorer-macos.zip
+          name: TaskExplorer-macos-${{ matrix.arch }}
+          path: ${{ steps.locate.outputs.project_dir }}/dist/TaskExplorer-macos-${{ matrix.arch }}.zip

@@ -9,7 +9,8 @@
 GitHub Releases에서 운영체제에 맞는 zip 파일을 내려받아 실행합니다.
 
 - Windows: `TaskExplorer-windows.zip`
-- macOS: `TaskExplorer-macos.zip`
+- macOS Intel Mac: `TaskExplorer-macos-intel.zip`
+- macOS Apple Silicon: `TaskExplorer-macos-arm64.zip`
 
 ## Windows 실행
 
@@ -25,11 +26,31 @@ TaskExplorer/TaskExplorer.exe
 
 ## macOS 실행
 
-1. `TaskExplorer-macos.zip`을 다운로드합니다.
+1. 본인 Mac에 맞는 zip을 다운로드합니다.
 2. 압축을 풉니다.
 3. `TaskExplorer.app`을 실행합니다.
 
 macOS에서 `.app`은 실제로는 폴더 구조를 가진 앱 번들입니다. Windows에서 보면 폴더처럼 보일 수 있지만, macOS Finder에서는 앱처럼 실행됩니다.
+
+Mac 종류가 헷갈리면 터미널에서 아래 명령을 실행하세요.
+
+```bash
+uname -m
+```
+
+결과가 `x86_64`이면 Intel Mac입니다.
+
+```text
+TaskExplorer-macos-intel.zip
+```
+
+결과가 `arm64`이면 Apple Silicon Mac입니다.
+
+```text
+TaskExplorer-macos-arm64.zip
+```
+
+아키텍처가 맞지 않는 앱을 실행하면 Dock 아이콘만 잠깐 뜨고 창이 안 뜬 채 종료될 수 있습니다.
 
 ## macOS에서 "손상되었기 때문에 열 수 없음" 또는 바로 삭제되는 경우
 
@@ -57,8 +78,18 @@ open TaskExplorer.app
 
 ```bash
 cd ~/Downloads
-xattr -d com.apple.quarantine TaskExplorer-macos.zip
-unzip TaskExplorer-macos.zip
+xattr -d com.apple.quarantine TaskExplorer-macos-intel.zip
+unzip TaskExplorer-macos-intel.zip
+xattr -dr com.apple.quarantine TaskExplorer.app
+open TaskExplorer.app
+```
+
+Apple Silicon용 zip을 받은 경우 파일 이름만 바꾸면 됩니다.
+
+```bash
+cd ~/Downloads
+xattr -d com.apple.quarantine TaskExplorer-macos-arm64.zip
+unzip TaskExplorer-macos-arm64.zip
 xattr -dr com.apple.quarantine TaskExplorer.app
 open TaskExplorer.app
 ```
@@ -204,7 +235,8 @@ GitHub Actions에서 빌드:
 
 ```text
 TaskExplorer-windows.zip             Windows 실행 파일 패키지
-TaskExplorer-macos.zip               macOS 앱 패키지
+TaskExplorer-macos-intel.zip         macOS Intel 앱 패키지
+TaskExplorer-macos-arm64.zip         macOS Apple Silicon 앱 패키지
 TaskExplorer-macos-build-source.zip  macOS에서 직접 빌드할 수 있는 최소 소스 패키지
 ```
 
