@@ -54,6 +54,8 @@ jobs:
           cd "${{ steps.locate.outputs.project_dir }}"
           pyinstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
           file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer
+          ./dist/TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
+          cat "$HOME/Library/Application Support/TaskExplorer/TaskExplorer-boot.log" || true
           python - <<'PY'
           from pathlib import Path
           import zipfile

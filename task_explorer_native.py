@@ -7,6 +7,7 @@ import ctypes
 import traceback
 import unicodedata
 import uuid
+import atexit
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -179,6 +180,23 @@ def write_startup_error(message):
             return fallback
         except Exception:
             return None
+
+
+def boot_log_path():
+    try:
+        return app_dir() / "TaskExplorer-boot.log"
+    except Exception:
+        return Path.home() / "TaskExplorer-boot.log"
+
+
+def boot_log(message):
+    try:
+        path = boot_log_path()
+        stamp = datetime.now().isoformat(timespec="seconds")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{stamp}] {message}\n")
+    except Exception:
+        pass
 
 
 def now_iso():
@@ -837,14 +855,18 @@ def format_duration(seconds):
 
 class App(ctk.CTk):
     def __init__(self):
+        boot_log("App.__init__ start")
         super().__init__()
+        boot_log("CTk root created")
         self.store = TaskStore()
+        boot_log("TaskStore loaded")
         self.ui_state = self.store.state.setdefault("ui", {})
         self.color_theme_key = self.ui_state.get("colorTheme", "sky")
         apply_color_theme(self.color_theme_key)
         self.activity_log = ActivityLog()
-        self.withdraw()
+        boot_log("ActivityLog opened")
         self.title(APP_TITLE); self.minsize(900, 640); self.apply_start_geometry(); self.configure(fg_color=COL["bg"])
+        boot_log("window geometry applied")
         if self.ui_state.get("zoomed"):
             self.after(80, self.safe_zoomed)
         self.current_parent = ROOT_ID; self.selected_id = None; self.view_mode = self.ui_state.get("viewMode", "all"); self.kind_filter = "all"
@@ -873,7 +895,15 @@ class App(ctk.CTk):
         self.virtual_hover_id = None
         self.virtual_hover_job = None
         self.grid_columnconfigure(1, weight=1); self.grid_rowconfigure(0, weight=1)
-        self.build_sidebar(); self.build_main(); self.build_detail(); self.refresh_initial(); self.protocol("WM_DELETE_WINDOW", self.on_close)
+        boot_log("building sidebar")
+        self.build_sidebar()
+        boot_log("building main")
+        self.build_main()
+        boot_log("building detail")
+        self.build_detail()
+        boot_log("refresh initial")
+        self.refresh_initial()
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.bind_all("<MouseWheel>", self.fast_mousewheel, add="+")
         self.bind_all("<B1-Motion>", self.drag_motion, add="+")
         self.bind_all("<ButtonRelease-1>", self.finish_drag, add="+")
@@ -881,6 +911,7 @@ class App(ctk.CTk):
         self.after(800, self.refresh_side)
         if self.activity_running:
             self.after(1000, self.poll_activity)
+        boot_log("App.__init__ complete")
 
     def report_callback_exception(self, exc, value, tb):
         detail = "".join(traceback.format_exception(exc, value, tb))
@@ -901,6 +932,7 @@ class App(ctk.CTk):
 
     def show_start_window(self):
         try:
+            boot_log("show_start_window")
             self.deiconify()
             self.update_idletasks()
             self.lift()
@@ -2932,12 +2964,34 @@ class App(ctk.CTk):
         self.activity_log.conn.close()
         self.save_window_state(); self.store.save(); self.destroy()
 
+def smoke_test():
+    boot_log("smoke-test start")
+    info = {
+        "platform": sys.platform,
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "app_dir": str(app_dir()),
+        "python": sys.version.split()[0],
+        "tk": tk.TkVersion,
+    }
+    print(json.dumps(info, ensure_ascii=False), flush=True)
+    boot_log("smoke-test complete")
+
+
 def main():
+    boot_log("main start")
+    atexit.register(lambda: boot_log("process exit"))
+    if "--smoke-test" in sys.argv:
+        smoke_test()
+        return
     try:
-        App().mainloop()
+        app = App()
+        boot_log("mainloop start")
+        app.mainloop()
+        boot_log("mainloop returned")
     except Exception:
         detail = traceback.format_exc()
         log_path = write_startup_error(detail)
+        boot_log("fatal exception written")
         try:
             root = tk.Tk()
             root.withdraw()
