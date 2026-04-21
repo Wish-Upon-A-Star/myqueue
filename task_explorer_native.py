@@ -1675,9 +1675,9 @@ class App(ctk.CTk):
         height = max(560, self.cards.winfo_height())
         today = datetime.now().strftime("%Y-%m-%d")
         total = self.activity_log.total_seconds(today)
-        status = "?? ?" if self.activity_running else "?? ??"
+        status = "기록 중" if self.activity_running else "기록 정지"
         labels = {"timeline": "\ud558\ub8e8 \ud750\ub984", "group": "\ubd84\ub958\ubcc4", "program": "\ud504\ub85c\uadf8\ub7a8\ubcc4", "hour": "\uc2dc\uac04\ubcc4"}
-        mode_label = labels.get(self.activity_view, "?? ??")
+        mode_label = labels.get(self.activity_view, "활동 기록")
         group_overrides = self.activity_group_overrides()
 
         def bind_click(tag, callback):
@@ -1697,7 +1697,7 @@ class App(ctk.CTk):
 
         def activity_group_button(row_tag, button_tag, x1, y1, process_name):
             self.cards.create_rectangle(x1, y1, x1 + 94, y1 + 28, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity", row_tag, button_tag), state="hidden")
-            self.cards.create_text(x1 + 47, y1 + 8, text="?? ??", anchor="n", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag, button_tag), state="hidden")
+            self.cards.create_text(x1 + 47, y1 + 8, text="그룹 지정", anchor="n", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag, button_tag), state="hidden")
             self.cards.tag_bind(row_tag, "<Enter>", lambda e, t=button_tag: self.cards.itemconfigure(t, state="normal"))
             self.cards.tag_bind(row_tag, "<Leave>", lambda e, t=button_tag: self.cards.itemconfigure(t, state="hidden"))
             bind_activity_action(button_tag, process_name)
@@ -1738,8 +1738,8 @@ class App(ctk.CTk):
                 self.cards.create_text(x1 + 5, y_pos + 2, text=label, anchor="nw", fill="white", font=(READ_FONT, 7, "bold"), tags=("activity",))
 
         self.cards.create_rectangle(12, 12, width - 12, 118, fill="#ffffff", outline=COL["line"], width=1, tags=("activity",))
-        self.cards.create_text(34, 30, text="?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 18, "bold"), tags=("activity",))
-        self.cards.create_text(34, 62, text=f"{today} ? {status} ? ?? ?? {format_duration(total)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 10), tags=("activity",))
+        self.cards.create_text(34, 30, text="활동 기록", anchor="nw", fill=COL["text"], font=(READ_FONT, 18, "bold"), tags=("activity",))
+        self.cards.create_text(34, 62, text=f"{today} · {status} · 총 기록 {format_duration(total)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 10), tags=("activity",))
         self.cards.create_text(34, 88, text="\uae30\ubcf8\uc740 \uc804\uccb4 \ud750\ub984\uc744 \ud55c \uc904\ub85c \ubcf4\uace0, \ud544\uc694\ud560 \ub54c \ud504\ub85c\uadf8\ub7a8/\ubd84\ub958\ubcc4\ub85c \ud3bc\uccd0\uc11c \ud655\uc778\ud569\ub2c8\ub2e4.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
         self.cards.create_rectangle(width - 170, 36, width - 34, 72, fill=COL["hero_soft"], outline=COL["line"], width=1, tags=("activity",))
         self.cards.create_text(width - 150, 46, text=mode_label, anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("activity",))
@@ -1753,8 +1753,8 @@ class App(ctk.CTk):
                 left = 112
                 right = width - 34
                 top = y + 36
-                self.cards.create_text(34, y, text="?? ?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 13, "bold"), tags=("activity",))
-                self.cards.create_text(34, y + 26, text="??", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
+                self.cards.create_text(34, y, text="오늘 전체 흐름", anchor="nw", fill=COL["text"], font=(READ_FONT, 13, "bold"), tags=("activity",))
+                self.cards.create_text(34, y + 26, text="프로그램", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
                 self.cards.create_rectangle(left, top, right, top + 18, fill="#ffffff", outline=COL["line"], tags=("activity",))
                 draw_timeline_scale(left, right, top - 18, top + 22)
                 for started, ended, seconds, name, title in sessions:
@@ -1782,17 +1782,17 @@ class App(ctk.CTk):
                     draw_session_bar(left, right, lane_y.get(key, y), started, ended, seconds, color)
 
                 y += max(1, len(lanes)) * 34 + 22
-                self.cards.create_text(34, y, text="?? ??", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                self.cards.create_text(34, y, text="최근 기록", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
                 y += 30
                 recent_sessions = sessions[-8:]
                 if len(sessions) > 8:
-                    self.cards.create_text(width - 230, y - 28, text=f"?? 8?? ?? ? ?? {len(sessions)}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
+                    self.cards.create_text(width - 230, y - 28, text=f"최근 8개만 표시 중 · 전체 {len(sessions)}개", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
                 for started, ended, seconds, name, title in recent_sessions:
                     key, label, color = activity_group_for(name, title, group_overrides)
                     self.cards.create_rectangle(34, y, width - 24, y + 40, fill="#ffffff", outline=COL["line"], tags=("activity",))
                     self.cards.create_rectangle(44, y + 9, 50, y + 31, fill=color, outline=color, tags=("activity",))
                     self.cards.create_text(60, y + 8, text=f"{started[11:16]}-{ended[11:16]}  {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 9, "bold"), tags=("activity",))
-                    self.cards.create_text(250, y + 8, text=f"{name} ? {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 430), tags=("activity",))
+                    self.cards.create_text(250, y + 8, text=f"{name} · {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 430), tags=("activity",))
                     self.cards.create_text(width - 122, y + 8, text=format_duration(seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity",))
                     y += 46
 
@@ -1806,7 +1806,7 @@ class App(ctk.CTk):
                     filter_labels.append(row[1])
             chip_x = 34
             for idx, label in enumerate(filter_labels):
-                text = "??" if label == "all" else label
+                text = "전체" if label == "all" else label
                 active = self.activity_group_filter == label or (label == "all" and self.activity_group_filter == "all")
                 tag = f"activity-filter-{idx}"
                 chip_w = max(70, min(150, 18 + len(text) * 10))
@@ -1828,12 +1828,12 @@ class App(ctk.CTk):
                 self.cards.create_rectangle(24, y, width - 24, y + row_h - 10, fill="#ffffff", outline=COL["line"], tags=("activity",))
                 self.cards.create_rectangle(38, y + 14, 46, y + row_h - 24, fill=color, outline=color, tags=("activity",))
                 self.cards.create_text(58, y + 12, text=label, anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
-                self.cards.create_text(width - 200, y + 12, text=f"{format_duration(seconds)} ? {count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+                self.cards.create_text(width - 200, y + 12, text=f"{format_duration(seconds)} · {count}회", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
                 bar_w = int((width - 330) * (seconds / max_total)) if max_total else 0
                 self.cards.create_rectangle(58, y + 38, 58 + max(4, bar_w), y + 43, fill=color, outline=color, tags=("activity",))
                 sy = y + 52
                 for pname, pseconds in programs:
-                    self.cards.create_text(64, sy, text=f"- {pname} ? {format_duration(pseconds)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
+                    self.cards.create_text(64, sy, text=f"- {pname} · {format_duration(pseconds)}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity",))
                     sy += 18
                 if titles:
                     self.cards.create_text(310, y + 52, text=" / ".join(titles), anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), width=max(220, width - 520), tags=("activity",))
@@ -1856,9 +1856,9 @@ class App(ctk.CTk):
                 button_tag = f"activity-program-group-{idx}"
                 self.cards.create_rectangle(24, y0, width - 24, y0 + row_h - 10, fill="#ffffff", outline=COL["line"], width=1, tags=("activity", row_tag))
                 self.cards.create_rectangle(36, y0 + 14, 42, y0 + row_h - 24, fill=group_color, outline=group_color, tags=("activity", row_tag))
-                self.cards.create_text(54, y0 + 12, text=("? " if is_open else "? ") + name, anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity", row_tag))
+                self.cards.create_text(54, y0 + 12, text=("▾ " if is_open else "▸ ") + name, anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity", row_tag))
                 self.cards.create_text(230, y0 + 14, text=group_label, anchor="nw", fill=group_color, font=(READ_FONT, 9, "bold"), tags=("activity", row_tag))
-                self.cards.create_text(width - 190, y0 + 12, text=f"{format_duration(seconds)} ? {count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
+                self.cards.create_text(width - 190, y0 + 12, text=f"{format_duration(seconds)} · {count}회", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
                 bar_w = int((width - 350) * (seconds / max_total)) if max_total else 0
                 self.cards.create_rectangle(54, y0 + 38, 54 + max(4, bar_w), y0 + 43, fill=group_color, outline=group_color, tags=("activity", row_tag))
                 self.cards.create_text(54, y0 + 50, text="\ud074\ub9ad\ud558\uba74 \uc774 \ud504\ub85c\uadf8\ub7a8\uc5d0\uc11c \uc5f4\ub9b0 \ucc3d \uc81c\ubaa9\uc744 \ud3bc\uccd0\ubd05\ub2c8\ub2e4.", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
@@ -1867,17 +1867,17 @@ class App(ctk.CTk):
                 sy = y0 + 72
                 for title, title_seconds, title_count, last_seen in visible_titles:
                     self.cards.create_text(66, sy, text=f"- {title}", anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(260, width - 370), tags=("activity", row_tag))
-                    self.cards.create_text(width - 190, sy, text=f"{format_duration(title_seconds)} ? {title_count}?", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
+                    self.cards.create_text(width - 190, sy, text=f"{format_duration(title_seconds)} · {title_count}회", anchor="nw", fill=COL["muted"], font=(READ_FONT, 8), tags=("activity", row_tag))
                     sy += 24
                 if not is_open and len(titles) > 3:
-                    self.cards.create_text(66, sy, text=f"? {len(titles) - 3}? ? ??", anchor="nw", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag))
+                    self.cards.create_text(66, sy, text=f"외 {len(titles) - 3}개 더 보기", anchor="nw", fill=COL["primary"], font=(READ_FONT, 8, "bold"), tags=("activity", row_tag))
                 y += row_h
         else:
             grouped = self.activity_log.hourly_sessions(today)
             if not grouped:
                 empty_message(y)
             for hour in sorted(grouped):
-                self.cards.create_text(34, y, text=f"{hour}?", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
+                self.cards.create_text(34, y, text=f"{hour}시", anchor="nw", fill=COL["text"], font=(READ_FONT, 12, "bold"), tags=("activity",))
                 y += 28
                 for idx, (started, ended, name, title, seconds) in enumerate(grouped[hour][:10]):
                     key, label, color = activity_group_for(name, title, group_overrides)
@@ -1885,7 +1885,7 @@ class App(ctk.CTk):
                     button_tag = f"activity-hour-group-{hour}-{idx}"
                     self.cards.create_rectangle(44, y, width - 34, y + 46, fill="#ffffff", outline=COL["line"], width=1, tags=("activity", row_tag))
                     self.cards.create_rectangle(54, y + 10, 60, y + 36, fill=color, outline=color, tags=("activity", row_tag))
-                    self.cards.create_text(70, y + 7, text=f"{started}-{ended}  {name} ? {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 10, "bold"), tags=("activity", row_tag))
+                    self.cards.create_text(70, y + 7, text=f"{started}-{ended}  {name} · {label}", anchor="nw", fill=COL["text"], font=(READ_FONT, 10, "bold"), tags=("activity", row_tag))
                     self.cards.create_text(70, y + 26, text=title, anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), width=max(240, width - 360), tags=("activity", row_tag))
                     self.cards.create_text(width - 160, y + 10, text=format_duration(seconds), anchor="nw", fill=COL["muted"], font=(READ_FONT, 9), tags=("activity", row_tag))
                     activity_group_button(row_tag, button_tag, width - 260, y + 10, name)
