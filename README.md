@@ -105,9 +105,7 @@ macOS data files:
 - Created/completed date views
 - Activity logging by app, title, time, and group
 - Mini memo mode
-- AI task breakdown from pasted text using an OpenAI API key
-- Audio transcription into task-ready text, including large-file splitting when `ffmpeg.exe` is bundled
-- AI preview before adding generated tasks and memos to the current folder
+- AI Board friendly JSONL export for RAG or Notion/GitHub automation handoff
 
 ## Paste tree example
 
@@ -128,6 +126,34 @@ Parent task
     Smaller task
 ```
 
+## AI Board export
+
+Taskory can export its local task tree into JSONL that is easy for AI Board to ingest as RAG knowledge or automation input.
+
+```bash
+python scripts/export_taskory_for_ai_board.py task-explorer-state.json -o taskory-ai-board.jsonl
+```
+
+Pretty JSON output is also available:
+
+```bash
+python scripts/export_taskory_for_ai_board.py task-explorer-state.json --pretty-json -o taskory-ai-board.json
+```
+
+Each exported record contains:
+
+- `title`
+- `path`
+- `kind`
+- `memo`
+- `flags`
+- `priority`
+- `createdAt`
+- `completedAt`
+- `text`
+
+The `text` field is a compact Korean summary designed for search, RAG, and Notion/GitHub report generation.
+
 ## Development launch
 
 Python 3.12 is recommended.
@@ -139,7 +165,7 @@ python task_explorer_native.py
 Windows build:
 
 ```powershell
-.uild_windows.ps1
+.\build_windows.ps1
 ```
 
 macOS build, on macOS only:

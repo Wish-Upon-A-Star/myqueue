@@ -8,6 +8,7 @@ import traceback
 import unicodedata
 import uuid
 import atexit
+import tempfile
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -16,9 +17,13 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import customtkinter as ctk
 
-APP_TITLE = "\uc791\uc5c5 \ud050 \ud0d0\uc0c9\uae30"
+APP_NAME = "Taskory"
+APP_DIR_NAME = "Taskory"
+APP_TITLE = "Taskory"
 ROOT_ID = "root"
 STATE_FILE = "task-explorer-state.json"
+BOOT_LOG_FILE = "Taskory-boot.log"
+STARTUP_ERROR_LOG_FILE = "Taskory-startup-error.log"
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -163,7 +168,7 @@ def activity_group_for(process_name, window_title="", overrides=None):
 
 def app_dir():
     if getattr(sys, "frozen", False) and sys.platform == "darwin":
-        path = Path.home() / "Library" / "Application Support" / "TaskExplorer"
+        path = Path.home() / "Library" / "Application Support" / APP_DIR_NAME
         path.mkdir(parents=True, exist_ok=True)
         return path
     return Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -171,12 +176,12 @@ def app_dir():
 
 def write_startup_error(message):
     try:
-        log_path = app_dir() / "TaskExplorer-startup-error.log"
+        log_path = app_dir() / STARTUP_ERROR_LOG_FILE
         log_path.write_text(message, encoding="utf-8")
         return log_path
     except Exception:
         try:
-            fallback = Path.home() / "TaskExplorer-startup-error.log"
+            fallback = Path.home() / STARTUP_ERROR_LOG_FILE
             fallback.write_text(message, encoding="utf-8")
             return fallback
         except Exception:
@@ -185,9 +190,9 @@ def write_startup_error(message):
 
 def boot_log_path():
     try:
-        return app_dir() / "TaskExplorer-boot.log"
+        return app_dir() / BOOT_LOG_FILE
     except Exception:
-        return Path.home() / "TaskExplorer-boot.log"
+        return Path.home() / BOOT_LOG_FILE
 
 
 def boot_log(message):
@@ -602,8 +607,8 @@ class TaskStore:
 
 
 class ActivityLog:
-    def __init__(self):
-        self.path = app_dir() / "activity-log.db"
+    def __init__(self, path=None):
+        self.path = Path(path) if path else app_dir() / "activity-log.db"
         self.conn = sqlite3.connect(self.path)
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
@@ -879,7 +884,7 @@ class App(ctk.CTk):
         self.current_parent = ROOT_ID; self.selected_id = None; self.view_mode = self.ui_state.get("viewMode", "all"); self.kind_filter = "all"
         self.current_list_id = None; self.current_date = None; self.current_date_mode = None; self.date_filter = "created"; self.drag_source = None; self.drag_start_x = 0; self.drag_start_y = 0; self.drag_last_target = None; self.drag_last_after = False; self.drop_targets = {}; self.folder_ids = []; self.paste_open = False; self.left_panel_open = bool(self.ui_state.get("leftPanelOpen", True)); self.right_panel_open = bool(self.ui_state.get("rightPanelOpen", False)); self.tools_open = True; self.side_section_open = dict(self.ui_state.get("sideSectionOpen", {"lists": True, "folders": True, "files": False})); self.right_section_open = dict(self.ui_state.get("rightSectionOpen", {"views": True, "dates": False, "activity": True, "memo": True}))
         self.activity_running = bool(self.ui_state.get("activityRunning", False))
-        self.activity_log_titles = bool(self.ui_state.get("activityLogTitles", True))
+        self.activity_log_titles = bool(self.ui_state.get("activityLogTitles", False))
         self.activity_view = self.ui_state.get("activityView", "timeline")
         self.activity_group_filter = self.ui_state.get("activityGroupFilter", "all")
         self.activity_expanded_programs = set()
@@ -926,7 +931,7 @@ class App(ctk.CTk):
         detail = "".join(traceback.format_exception(exc, value, tb))
         write_startup_error(detail)
         try:
-            messagebox.showerror("TaskExplorer 오류", f"실행 중 오류가 발생했습니다.\n\n{detail[:1200]}")
+            messagebox.showerror("Taskory 오류", f"실행 중 오류가 발생했습니다.\n\n{detail[:1200]}")
         except Exception:
             pass
 
@@ -3250,12 +3255,32 @@ class App(ctk.CTk):
 
 def smoke_test():
     boot_log("smoke-test start")
+    parsed = parse_tree_text_detailed("Parent {today priority=2}\n  Child\n  [memo] Note\n  > memo body\n- [x] Done {important}")
+    if parsed["errors"] or len(parsed["rows"]) != 4:
+        raise RuntimeError(f"parser smoke test failed: {parsed}")
+    store = TaskStore()
+    parent_id = store.add_node(ROOT_ID, "Smoke parent")
+    child_id = store.add_node(parent_id, "Smoke child", priority=1, is_today=True)
+    if not store.node(child_id) or store.node(child_id).get("parentId") != parent_id:
+        raise RuntimeError("TaskStore smoke test failed")
+    with tempfile.TemporaryDirectory(prefix="taskory-smoke-") as tmp:
+        log = ActivityLog(Path(tmp) / "activity-log.db")
+        try:
+            log.switch_to("TaskorySmoke.exe", "Smoke window")
+            log.touch_current()
+            log.close_current()
+            if log.total_seconds(activity_now_iso()[:10]) < 0:
+                raise RuntimeError("ActivityLog smoke test failed")
+        finally:
+            log.close()
     info = {
         "platform": sys.platform,
         "frozen": bool(getattr(sys, "frozen", False)),
         "app_dir": str(app_dir()),
         "python": sys.version.split()[0],
         "tk": tk.TkVersion,
+        "parserRows": len(parsed["rows"]),
+        "storeNodes": len(store.nodes),
     }
     print(json.dumps(info, ensure_ascii=False), flush=True)
     boot_log("smoke-test complete")
@@ -3280,7 +3305,7 @@ def main():
             root = tk.Tk()
             root.withdraw()
             suffix = f"\n\n로그: {log_path}" if log_path else ""
-            messagebox.showerror("TaskExplorer 시작 실패", f"앱을 시작하지 못했습니다.{suffix}\n\n{detail[:1200]}")
+            messagebox.showerror("Taskory 시작 실패", f"앱을 시작하지 못했습니다.{suffix}\n\n{detail[:1200]}")
             root.destroy()
         except Exception:
             pass
