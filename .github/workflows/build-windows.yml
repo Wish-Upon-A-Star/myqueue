@@ -1,0 +1,45 @@
+name: Build Taskory Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate project
+        id: locate
+        shell: powershell
+        run: |
+          if (Test-Path task_explorer_native.py) {
+            "project_dir=." >> $env:GITHUB_OUTPUT
+          } elseif (Test-Path myqueue/task_explorer_native.py) {
+            "project_dir=myqueue" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Error "task_explorer_native.py not found"
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build app and verify launch path
+        shell: powershell
+        run: |
+          cd "${{ steps.locate.outputs.project_dir }}"
+          powershell -ExecutionPolicy Bypass -File .\build_windows.ps1
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Taskory-windows
+          path: ${{ steps.locate.outputs.project_dir }}/release/Taskory-windows.zip

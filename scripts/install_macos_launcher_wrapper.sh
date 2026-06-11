@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_PATH="${1:?Usage: install_macos_launcher_wrapper.sh path/to/TaskExplorer.app [ExecutableName]}"
-APP_NAME="${2:-TaskExplorer}"
+APP_PATH="${1:?Usage: install_macos_launcher_wrapper.sh path/to/Taskory.app [ExecutableName]}"
+APP_NAME="${2:-Taskory}"
 MACOS_DIR="${APP_PATH}/Contents/MacOS"
 EXECUTABLE="${MACOS_DIR}/${APP_NAME}"
 REAL_EXECUTABLE="${MACOS_DIR}/${APP_NAME}.bin"
@@ -25,9 +25,9 @@ cat > "${EXECUTABLE}" <<'SH'
 #!/usr/bin/env bash
 set -u
 
-LOG_DIR="${HOME}/Library/Application Support/TaskExplorer"
-LOG_FILE="${LOG_DIR}/TaskExplorer-launcher.log"
-REAL_BIN="$(cd "$(dirname "$0")" && pwd)/TaskExplorer.bin"
+LOG_DIR="${HOME}/Library/Application Support/Taskory"
+LOG_FILE="${LOG_DIR}/Taskory-launcher.log"
+REAL_BIN="$(cd "$(dirname "$0")" && pwd)/Taskory.bin"
 
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
 

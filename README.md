@@ -1,271 +1,161 @@
-# 작업 큐 탐색기
+# Taskory
 
-작업 큐 탐색기는 큰 작업을 작은 작업으로 쪼개고, 오늘 할 일, 중요 작업, 메모, 활동 기록을 한 화면에서 관리하는 개인용 작업 관리 프로그램입니다.
+Taskory (태스토리) is a desktop task queue app for breaking large work into smaller tasks and notes.
 
-현재 버전은 `Python + customtkinter` 기반의 데스크톱 앱입니다. Electron은 사용하지 않습니다.
+The current app is built with Python and customtkinter. It does not use Electron.
 
-## 다운로드와 실행
+## Downloads
 
-GitHub Releases에서 운영체제에 맞는 zip 파일을 내려받아 실행합니다.
+Use the package for your operating system:
 
-- Windows: `TaskExplorer-windows.zip`
-- macOS Intel Mac: `TaskExplorer-macos-intel.zip`
-- macOS Apple Silicon: `TaskExplorer-macos-arm64.zip`
+- Windows: `Taskory-windows.zip`
+- macOS Intel: `Taskory-macos-intel.zip`
+- macOS Apple Silicon: `Taskory-macos-arm64.zip`
 
-## Windows 실행
-
-1. `TaskExplorer-windows.zip`을 다운로드합니다.
-2. 원하는 위치에 압축을 풉니다.
-3. 압축을 푼 폴더 안의 `TaskExplorer.exe`를 실행합니다.
-
-권장 실행 파일:
-
-```text
-TaskExplorer/TaskExplorer.exe
-```
-
-## macOS 실행
-
-1. 본인 Mac에 맞는 zip을 다운로드합니다.
-2. 압축을 풉니다.
-3. `TaskExplorer.app`을 실행합니다.
-
-macOS에서 `.app`은 실제로는 폴더 구조를 가진 앱 번들입니다. Windows에서 보면 폴더처럼 보일 수 있지만, macOS Finder에서는 앱처럼 실행됩니다.
-
-Mac 종류가 헷갈리면 터미널에서 아래 명령을 실행하세요.
+Check your Mac type:
 
 ```bash
 uname -m
 ```
 
-결과가 `x86_64`이면 Intel Mac입니다.
+- `x86_64`: Intel Mac
+- `arm64`: Apple Silicon Mac
+
+## Windows launch
+
+1. Unzip `Taskory-windows.zip`.
+2. Run `Taskory/Taskory.exe`.
+
+Windows data files are stored next to the executable:
 
 ```text
-TaskExplorer-macos-intel.zip
+Taskory/task-explorer-state.json
+Taskory/activity-log.db
 ```
 
-결과가 `arm64`이면 Apple Silicon Mac입니다.
+## macOS launch
+
+The macOS zip contains a folder like this:
 
 ```text
-TaskExplorer-macos-arm64.zip
+Taskory-macos-arm64/
+  Taskory.app
+  run.command
+  README-mac.txt
 ```
 
-아키텍처가 맞지 않는 앱을 실행하면 Dock 아이콘만 잠깐 뜨고 창이 안 뜬 채 종료될 수 있습니다.
+For the first launch, use `run.command` instead of double-clicking the app directly.
 
-## macOS에서 창이 안 뜨고 바로 꺼지는 경우
+1. Unzip the package.
+2. Double-click `run.command`.
+3. If macOS blocks it, right-click `run.command` and choose `Open`.
+4. If it launches successfully, you can move `Taskory.app` to Applications later.
 
-최신 macOS 배포본은 앱 시작 과정을 로그 파일로 남깁니다. 터미널에서 실행해도 아무 출력이 없으면 아래 파일을 확인하세요.
+Terminal launch:
 
 ```bash
-cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-launcher.log
-cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
-cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-startup-error.log
+cd ~/Downloads/Taskory-macos-arm64
+chmod +x run.command
+./run.command
 ```
 
-`TaskExplorer-launcher.log`는 앱 번들이 눌렸는지, 실제 실행 파일까지 넘어갔는지 확인하는 가장 앞단 로그입니다.
-
-정상적으로 앱이 창을 띄우기 직전까지 갔다면 `TaskExplorer-boot.log`에 `mainloop start`가 기록됩니다.
-
-문제가 계속되면 아래 명령으로 실행 환경만 먼저 확인할 수 있습니다.
+For Intel Mac, use the Intel folder name:
 
 ```bash
-./TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
-cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-launcher.log
-cat ~/Library/Application\ Support/TaskExplorer/TaskExplorer-boot.log
+cd ~/Downloads/Taskory-macos-intel
+chmod +x run.command
+./run.command
 ```
 
-`--smoke-test`는 창을 띄우지 않고 앱 저장 폴더, Python/Tk 실행 가능 여부만 확인합니다.
+`run.command` performs these checks automatically:
 
-## macOS에서 "손상되었기 때문에 열 수 없음" 또는 바로 삭제되는 경우
+- fixes executable permissions when possible
+- removes macOS quarantine attributes when possible
+- runs `Taskory.app/Contents/MacOS/Taskory --smoke-test`
+- opens `Taskory.app`
+- writes logs for debugging
 
-이 앱은 아직 Apple 개발자 서명과 공증을 받지 않았습니다. 그래서 macOS Gatekeeper가 다운로드한 앱에 붙은 격리 속성 때문에 실행을 막을 수 있습니다.
-
-압축을 푼 뒤 터미널에서 아래 명령을 실행하세요.
-
-```bash
-cd ~/Downloads
-xattr -dr com.apple.quarantine TaskExplorer.app
-open TaskExplorer.app
-```
-
-앱을 다른 폴더에 풀었다면 `cd` 경로를 그 위치로 바꾸면 됩니다.
-
-예시:
-
-```bash
-cd ~/Applications
-xattr -dr com.apple.quarantine TaskExplorer.app
-open TaskExplorer.app
-```
-
-만약 zip 파일 자체에 격리 속성이 붙어 있어서 압축 해제 후에도 계속 막히면, zip에도 먼저 적용할 수 있습니다.
-
-```bash
-cd ~/Downloads
-xattr -d com.apple.quarantine TaskExplorer-macos-intel.zip
-unzip TaskExplorer-macos-intel.zip
-xattr -dr com.apple.quarantine TaskExplorer.app
-open TaskExplorer.app
-```
-
-Apple Silicon용 zip을 받은 경우 파일 이름만 바꾸면 됩니다.
-
-```bash
-cd ~/Downloads
-xattr -d com.apple.quarantine TaskExplorer-macos-arm64.zip
-unzip TaskExplorer-macos-arm64.zip
-xattr -dr com.apple.quarantine TaskExplorer.app
-open TaskExplorer.app
-```
-
-또는 Finder에서 실행할 때는 아래 순서로 시도할 수 있습니다.
-
-1. `TaskExplorer.app`을 우클릭합니다.
-2. `열기`를 누릅니다.
-3. 경고창이 뜨면 다시 `열기`를 누릅니다.
-
-이 방법은 앱을 신뢰하고 실행하겠다는 사용자의 명시적 허용입니다.
-
-## 주요 기능
-
-- 작업을 트리 구조로 세분화
-- 작업 추가, 이름 수정, 삭제, 복사
-- 드래그로 작업 순서 변경
-- 드래그로 다른 작업 아래로 이동
-- 현재 작업의 부모로 이동
-- 오늘 할 일 표시
-- 중요 작업 표시
-- 완료 처리
-- 우선순위 지정
-- 같은 우선순위에서는 만든 순서 유지
-- 오늘 할 일, 중요, 완료, 우선순위 보기
-- 4분할 보기
-- 메모와 할 일 구분
-- 작업별 메모 작성
-- 현재 작업 하위 구조 보기
-- 작업 구조 txt 내보내기
-- txt나 트리 텍스트 붙여넣기로 작업 구조 추가
-- 날짜별 작성 기록 보기
-- 완료 날짜별 보기
-- 목록과 폴더 관리
-- 활동 기록 보기
-- 프로그램별 활동 기록
-- 시간별 활동 기록
-- 하루 전체 흐름 보기
-- 활동 분류별 흐름 보기
-
-## 활동 기록 기능
-
-활동 기록은 현재 활성 창의 프로그램 이름과 창 제목을 저장해서 하루 동안 무엇을 했는지 돌아볼 수 있게 합니다.
-
-지원하는 보기:
-
-- 하루 흐름
-- 분류별 보기
-- 프로그램별 보기
-- 시간별 보기
-
-프로그램별 보기에서는 `chrome.exe` 같은 프로그램 행을 클릭하면 그 프로그램에서 열었던 창 제목 목록을 펼쳐볼 수 있습니다.
-
-## 작업 구조 붙여넣기 예시
-
-아래처럼 트리 모양 텍스트를 붙여넣으면 현재 위치 아래에 작업으로 추가됩니다.
+macOS logs:
 
 ```text
-소켓 객체
-├── 상태
-├── 주소 정보
-├── 버퍼
-└── 옵션
+~/Library/Application Support/Taskory/Taskory-run-command.log
+~/Library/Application Support/Taskory/Taskory-launcher.log
+~/Library/Application Support/Taskory/Taskory-boot.log
+~/Library/Application Support/Taskory/Taskory-startup-error.log
 ```
 
-들여쓰기 형식도 사용할 수 있습니다.
+macOS data files:
 
 ```text
-부모 작업
-  자식 작업 1
-  자식 작업 2
-    더 작은 작업
+~/Library/Application Support/Taskory/task-explorer-state.json
+~/Library/Application Support/Taskory/activity-log.db
 ```
 
-## 저장 위치
+## Main features
 
-Windows 실행 파일 버전은 실행 폴더에 데이터를 저장합니다.
+- Tree-based task breakdown
+- Add, edit, delete, copy tasks
+- Task and memo separation
+- Memo blocks and image memo blocks
+- Today, important, completed, priority views
+- Eisenhower matrix view
+- Current subtree view
+- TXT export/import
+- Saved lists and project folders
+- Created/completed date views
+- Activity logging by app, title, time, and group
+- Mini memo mode
+- AI task breakdown from pasted text using an OpenAI API key
+- Audio transcription into task-ready text, including large-file splitting when `ffmpeg.exe` is bundled
+- AI preview before adding generated tasks and memos to the current folder
+
+## Paste tree example
 
 ```text
-TaskExplorer/task-explorer-state.json
-TaskExplorer/activity-log.db
+Socket object
+??? State
+??? Address info
+??? Buffer
+??? Options
 ```
 
-macOS 앱 버전은 사용자 Application Support 폴더에 데이터를 저장합니다.
+Indented text also works:
 
 ```text
-~/Library/Application Support/TaskExplorer/task-explorer-state.json
-~/Library/Application Support/TaskExplorer/activity-log.db
+Parent task
+  Child task 1
+  Child task 2
+    Smaller task
 ```
 
-개인 작업 데이터와 활동 기록 데이터는 GitHub 저장소와 배포 zip에 포함하지 않습니다.
+## Development launch
 
-## 개발 상태로 실행
+Python 3.12 is recommended.
 
-Python이 설치되어 있다면 소스 상태로 실행할 수 있습니다.
-
-```powershell
+```bash
 python task_explorer_native.py
 ```
 
-## Windows 실행 파일 다시 만들기
-
-권장 Python 버전은 Python 3.12입니다.
+Windows build:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
+.uild_windows.ps1
 ```
 
-결과:
-
-```text
-dist/TaskExplorer/TaskExplorer.exe
-```
-
-## macOS 앱 다시 만들기
-
-Windows에서는 macOS `.app`을 직접 만들 수 없습니다. macOS에서 직접 빌드하거나 GitHub Actions를 사용해야 합니다.
-
-macOS에서 직접 빌드:
+macOS build, on macOS only:
 
 ```bash
 chmod +x build_macos.sh
 ./build_macos.sh
 ```
 
-결과:
+## Build outputs
 
 ```text
-dist/TaskExplorer.app
-dist/TaskExplorer-macos.zip
+release/Taskory-windows.zip
+
+dist/Taskory-macos-intel.zip
+dist/Taskory-macos-arm64.zip
 ```
 
-GitHub Actions에서 빌드:
-
-1. GitHub 저장소의 `Actions` 탭으로 이동합니다.
-2. `Build macOS app` 워크플로를 선택합니다.
-3. `Run workflow`를 실행합니다.
-4. 완료 후 `TaskExplorer-macos` artifact를 다운로드합니다.
-
-## 배포 파일 구성
-
-```text
-TaskExplorer-windows.zip             Windows 실행 파일 패키지
-TaskExplorer-macos-intel.zip         macOS Intel 앱 패키지
-TaskExplorer-macos-arm64.zip         macOS Apple Silicon 앱 패키지
-TaskExplorer-macos-build-source.zip  macOS에서 직접 빌드할 수 있는 최소 소스 패키지
-```
-
-## 주의
-
-이 프로그램은 개인 작업 데이터와 활동 기록을 로컬에 저장합니다. 배포용 zip에는 개인 데이터가 들어가지 않도록 구성되어 있습니다.
-
-중요한 데이터는 프로그램의 JSON 저장 기능이나 파일 복사로 별도 백업하는 것을 권장합니다.
+Personal task data and activity logs should not be included in release zips.

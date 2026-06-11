@@ -1,4 +1,4 @@
-name: Build macOS app
+name: Build Taskory macOS app
 
 on:
   workflow_dispatch:
@@ -41,44 +41,23 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Build app package and verify launch path
         shell: bash
         run: |
           cd "${{ steps.locate.outputs.project_dir }}"
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build app
-        shell: bash
-        run: |
-          cd "${{ steps.locate.outputs.project_dir }}"
-          pyinstaller --noconfirm --windowed --name TaskExplorer task_explorer_native.py
-          bash scripts/install_macos_launcher_wrapper.sh dist/TaskExplorer.app TaskExplorer
-          file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer
-          file dist/TaskExplorer.app/Contents/MacOS/TaskExplorer.bin
-          ./dist/TaskExplorer.app/Contents/MacOS/TaskExplorer --smoke-test
-          cat "$HOME/Library/Application Support/TaskExplorer/TaskExplorer-launcher.log" || true
-          cat "$HOME/Library/Application Support/TaskExplorer/TaskExplorer-boot.log" || true
-          python - <<'PY'
-          from pathlib import Path
-          import zipfile
-          import os
-          app = Path('dist/TaskExplorer.app')
-          if not app.exists():
-              raise SystemExit('dist/TaskExplorer.app was not created')
-          arch = os.environ.get('TASK_EXPLORER_ARCH', 'macos')
-          out = Path(f'dist/TaskExplorer-macos-{arch}.zip')
-          if out.exists():
-              out.unlink()
-          with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
-              for path in app.rglob('*'):
-                  z.write(path, path.relative_to(app.parent))
-          PY
+          chmod +x build_macos.sh scripts/install_macos_launcher_wrapper.sh
+          ./build_macos.sh
+          echo "=== zip entries ==="
+          unzip -Z1 "dist/Taskory-macos-${{ matrix.arch }}.zip" | sed -n '1,80p'
+          echo "=== launcher log ==="
+          cat "$HOME/Library/Application Support/Taskory/Taskory-launcher.log" || true
+          echo "=== boot log ==="
+          cat "$HOME/Library/Application Support/Taskory/Taskory-boot.log" || true
         env:
           TASK_EXPLORER_ARCH: ${{ matrix.arch }}
 
-      - name: Upload macOS artifact
+      - name: Upload macOS package zip
         uses: actions/upload-artifact@v4
         with:
-          name: TaskExplorer-macos-${{ matrix.arch }}
-          path: ${{ steps.locate.outputs.project_dir }}/dist/TaskExplorer-macos-${{ matrix.arch }}.zip
+          name: Taskory-macos-${{ matrix.arch }}
+          path: ${{ steps.locate.outputs.project_dir }}/dist/Taskory-macos-${{ matrix.arch }}.zip

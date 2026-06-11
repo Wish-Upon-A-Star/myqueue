@@ -1,4 +1,4 @@
-import json
+﻿import json
 import re
 import shutil
 import sqlite3
@@ -108,6 +108,7 @@ READ_BODY_FONT = (READ_FONT, 12)
 READ_TITLE_FONT = (READ_FONT, 15, "bold")
 CONTROL_FONT = (READ_FONT, 11)
 MAX_CONTENT_WIDTH = 1120
+DEFAULT_CONTENT_WIDTH = 1120
 MIN_CONTENT_WIDTH = 420
 SCROLL_UNITS = 6
 DATE_SECTION_HEIGHT = 190
@@ -431,10 +432,14 @@ class TaskStore:
                 self.state = self.empty()
         self.ensure()
 
-    def save(self):
+    def save(self, pretty=False):
         self.ensure(sort=False)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.state, ensure_ascii=False, indent=2), encoding="utf-8")
+        if pretty:
+            data = json.dumps(self.state, ensure_ascii=False, indent=2)
+        else:
+            data = json.dumps(self.state, ensure_ascii=False, separators=(",", ":"))
+        tmp.write_text(data, encoding="utf-8")
         tmp.replace(self.path)
 
     def save_as(self, path):
@@ -865,12 +870,14 @@ class App(ctk.CTk):
         apply_color_theme(self.color_theme_key)
         self.activity_log = ActivityLog()
         boot_log("ActivityLog opened")
+        self.layout_state = self.ui_state.setdefault("layout", {})
+        self.layout_edit_mode = bool(self.ui_state.get("layoutEditMode", False))
         self.title(APP_TITLE); self.minsize(900, 640); self.apply_start_geometry(); self.configure(fg_color=COL["bg"])
         boot_log("window geometry applied")
         if self.ui_state.get("zoomed"):
             self.after(80, self.safe_zoomed)
         self.current_parent = ROOT_ID; self.selected_id = None; self.view_mode = self.ui_state.get("viewMode", "all"); self.kind_filter = "all"
-        self.current_list_id = None; self.current_date = None; self.current_date_mode = None; self.date_filter = "created"; self.drag_source = None; self.drag_start_x = 0; self.drag_start_y = 0; self.drag_last_target = None; self.drag_last_after = False; self.drop_targets = {}; self.folder_ids = []; self.paste_open = False; self.left_panel_open = bool(self.ui_state.get("leftPanelOpen", True)); self.right_panel_open = bool(self.ui_state.get("rightPanelOpen", False)); self.tools_open = False; self.side_section_open = dict(self.ui_state.get("sideSectionOpen", {"lists": True, "folders": True, "files": False})); self.right_section_open = dict(self.ui_state.get("rightSectionOpen", {"views": True, "dates": False, "activity": True, "memo": True}))
+        self.current_list_id = None; self.current_date = None; self.current_date_mode = None; self.date_filter = "created"; self.drag_source = None; self.drag_start_x = 0; self.drag_start_y = 0; self.drag_last_target = None; self.drag_last_after = False; self.drop_targets = {}; self.folder_ids = []; self.paste_open = False; self.left_panel_open = bool(self.ui_state.get("leftPanelOpen", True)); self.right_panel_open = bool(self.ui_state.get("rightPanelOpen", False)); self.tools_open = True; self.side_section_open = dict(self.ui_state.get("sideSectionOpen", {"lists": True, "folders": True, "files": False})); self.right_section_open = dict(self.ui_state.get("rightSectionOpen", {"views": True, "dates": False, "activity": True, "memo": True}))
         self.activity_running = bool(self.ui_state.get("activityRunning", False))
         self.activity_log_titles = bool(self.ui_state.get("activityLogTitles", True))
         self.activity_view = self.ui_state.get("activityView", "timeline")
@@ -883,6 +890,8 @@ class App(ctk.CTk):
         self.auto_left_collapsed = False
         self.auto_right_collapsed = False
         self.side_refresh_after_id = None
+        self.save_after_id = None
+        self.layout_drag = None
         self.card_render_limit = CARD_RENDER_BATCH
         self.children_count_cache = {}
         self.date_side_limit = SIDE_VISIBLE_LIMIT
@@ -975,7 +984,7 @@ class App(ctk.CTk):
         if not hasattr(self, "topbar"):
             return
         width = width or self.content.winfo_width() or MAX_CONTENT_WIDTH
-        buttons = [btn for _mode, btn in getattr(self, "top_tab_order", [])] + [getattr(self, "top_tool_button", None)]
+        buttons = [btn for _mode, btn in getattr(self, "top_tab_order", [])] + [getattr(self, "top_layout_button", None), getattr(self, "top_tool_button", None)]
         buttons = [b for b in buttons if b is not None]
         if width < 620:
             cols = 3
@@ -987,6 +996,46 @@ class App(ctk.CTk):
             self.topbar.grid_columnconfigure(c, weight=1 if c < cols else 0)
         for i, btn in enumerate(buttons):
             btn.grid(row=i // cols, column=i % cols, sticky="ew", padx=(8 if i % cols == 0 else 3, 8 if i % cols == cols - 1 else 3), pady=(8 if i < cols else 2, 8 if i >= len(buttons) - cols else 2))
+
+    def apply_add_panel_layout(self, width=None):
+        if not all(hasattr(self, name) for name in ("add_panel", "title_entry", "kind_button", "priority", "today_check", "add_button")):
+            return
+        width = width or self.content.winfo_width() or MAX_CONTENT_WIDTH
+        try:
+            self.add_button.configure(height=42, width=128)
+        except tk.TclError:
+            return
+        widgets = (self.title_entry, self.kind_button, self.priority, self.today_check, self.add_button)
+        for widget in widgets:
+            try:
+                widget.grid_forget()
+            except tk.TclError:
+                return
+        for col in range(5):
+            self.add_panel.grid_columnconfigure(col, weight=0, minsize=0)
+        if width < 620:
+            self.add_panel.grid_columnconfigure(0, weight=1)
+            self.add_panel.grid_columnconfigure(1, weight=1)
+            self.title_entry.grid(row=0, column=0, columnspan=2, sticky="ew", padx=12, pady=(12, 6))
+            self.priority.grid(row=1, column=0, sticky="ew", padx=(12, 6), pady=6)
+            self.today_check.grid(row=1, column=1, sticky="w", padx=(0, 12), pady=6)
+            self.kind_button.grid(row=2, column=0, sticky="ew", padx=(12, 6), pady=(6, 12))
+            self.add_button.grid(row=2, column=1, sticky="ew", padx=(0, 12), pady=(6, 12))
+        elif width < 840:
+            self.add_panel.grid_columnconfigure(0, weight=1)
+            self.add_panel.grid_columnconfigure(3, weight=1)
+            self.title_entry.grid(row=0, column=0, columnspan=4, sticky="ew", padx=12, pady=(12, 6))
+            self.kind_button.grid(row=1, column=0, sticky="ew", padx=(12, 6), pady=(6, 12))
+            self.priority.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=(6, 12))
+            self.today_check.grid(row=1, column=2, sticky="w", padx=(0, 6), pady=(6, 12))
+            self.add_button.grid(row=1, column=3, sticky="ew", padx=(0, 12), pady=(6, 12))
+        else:
+            self.add_panel.grid_columnconfigure(0, weight=1)
+            self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14)
+            self.kind_button.grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=14)
+            self.priority.grid(row=0, column=2, sticky="ew", padx=(0, 8), pady=14)
+            self.today_check.grid(row=0, column=3, sticky="w", padx=(0, 8), pady=14)
+            self.add_button.grid(row=0, column=4, sticky="ew", padx=(0, 12), pady=14)
 
     def apply_responsive_panels(self):
         width = self.winfo_width()
@@ -1016,7 +1065,7 @@ class App(ctk.CTk):
             self.auto_left_collapsed = False
 
     def build_sidebar(self):
-        self.side = ctk.CTkScrollableFrame(self, fg_color=COL["sidebar"], corner_radius=18, width=292)
+        self.side = ctk.CTkScrollableFrame(self, fg_color=COL["sidebar"], corner_radius=18, width=self.layout_size("sideWidth", 292, 220, 420))
         self.side.grid(row=0, column=0, sticky="nsew", padx=(10, 0), pady=10)
         self.side.grid_columnconfigure(0, weight=1)
         self.register_scroll(self.side)
@@ -1085,33 +1134,58 @@ class App(ctk.CTk):
             btn = ctk.CTkButton(topbar, text=label, command=lambda x=mode: self.set_view(x), height=36, corner_radius=14, font=CONTROL_FONT, border_width=1)
             self.top_tabs[mode] = btn
             self.top_tab_order.append((mode, btn))
+        self.top_layout_button = self.make_btn(topbar, "UI \ud3b8\uc9d1", self.toggle_layout_edit, variant="nav", height=34)
         self.top_tool_button = self.make_btn(topbar, "\ub3c4\uad6c", self.toggle_tools, variant="nav", height=34)
         self.apply_top_tab_layout(MAX_CONTENT_WIDTH)
-        hero = ctk.CTkFrame(self.content, fg_color=COL["hero"], corner_radius=20, border_width=1, border_color=COL["hero_line"])
-        hero.grid(row=1, column=0, sticky="ew", pady=(0, 14)); hero.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(hero, text="Focus Workspace", font=(FONT, 12, "bold"), text_color=COL["accent"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 0))
-        self.path_frame = ctk.CTkFrame(hero, fg_color="transparent"); self.path_frame.grid(row=1, column=0, sticky="ew", padx=22, pady=(2, 0)); self.path_frame.grid_columnconfigure(99, weight=1)
-        self.hint = ctk.CTkLabel(hero, text="", font=BODY_FONT, text_color=COL["muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
-        self.summary = ctk.CTkLabel(hero, text="", font=(FONT, 13, "bold"), text_color="white", fg_color=COL["primary"], corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
+        self.hero = ctk.CTkFrame(self.content, fg_color=COL["hero"], corner_radius=20, border_width=1, border_color=COL["hero_line"])
+        self.hero.grid(row=1, column=0, sticky="ew", pady=(0, 14)); self.hero.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(self.hero, text="Focus Workspace", font=(FONT, 12, "bold"), text_color=COL["accent"], anchor="w").grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 0))
+        self.path_frame = ctk.CTkFrame(self.hero, fg_color="transparent"); self.path_frame.grid(row=1, column=0, sticky="ew", padx=22, pady=(2, 0)); self.path_frame.grid_columnconfigure(99, weight=1)
+        self.hint = ctk.CTkLabel(self.hero, text="", font=BODY_FONT, text_color=COL["muted"], anchor="w"); self.hint.grid(row=2, column=0, sticky="ew", padx=22, pady=(4, 18))
+        self.summary = ctk.CTkLabel(self.hero, text="", font=(FONT, 13, "bold"), text_color="white", fg_color=COL["primary"], corner_radius=18, padx=16, pady=7); self.summary.grid(row=1, column=1, sticky="e", padx=22)
         self.add_panel = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=16, border_width=1, border_color=COL["line"])
         self.add_panel.grid(row=2, column=0, sticky="ew", pady=(0, 12)); self.add_panel.grid_columnconfigure(0, weight=1)
         add = self.add_panel
         self.title_entry = ctk.CTkEntry(add, placeholder_text="\uc0c8 \uc791\uc5c5\uc744 \uc785\ub825\ud558\uc138\uc694", height=46, font=(READ_FONT, 13), border_color=COL["line"], fg_color=COL["soft"])
         self.title_entry.grid(row=0, column=0, sticky="ew", padx=14, pady=14); self.title_entry.bind("<Return>", lambda _e: self.add_task())
         self.kind_var = ctk.StringVar(value="\ud560 \uc77c")
-        ctk.CTkOptionMenu(add, values=["\ud560 \uc77c", "\uba54\ubaa8"], variable=self.kind_var, width=92, height=46, font=CONTROL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"]).grid(row=0, column=1, padx=(0, 8))
-        self.priority = ctk.CTkEntry(add, placeholder_text="\uc6b0\uc120\uc21c\uc704", width=100, height=46, font=CONTROL_FONT, border_color=COL["line"], fg_color=COL["soft"]); self.priority.grid(row=0, column=2, padx=(0, 8))
-        self.today_var = ctk.BooleanVar(value=False); ctk.CTkCheckBox(add, text="\uc624\ub298", variable=self.today_var, width=70).grid(row=0, column=3, padx=(0, 8))
-        self.make_btn(add, "\ucd94\uac00", self.add_task, COL["primary"]).grid(row=0, column=4, padx=(0, 12), sticky="ns")
+        self.kind_button = ctk.CTkOptionMenu(add, values=["\ud560 \uc77c", "\uba54\ubaa8"], variable=self.kind_var, width=92, height=46, font=CONTROL_FONT, fg_color=COL["primary"], button_color=COL["primary_hover"], button_hover_color=COL["primary_hover"])
+        self.priority = ctk.CTkEntry(add, placeholder_text="\uc6b0\uc120\uc21c\uc704", width=100, height=46, font=CONTROL_FONT, border_color=COL["line"], fg_color=COL["soft"])
+        self.today_var = ctk.BooleanVar(value=False)
+        self.today_check = ctk.CTkCheckBox(add, text="\uc624\ub298", variable=self.today_var, width=70)
+        self.add_button = self.make_btn(add, "\ucd94\uac00", self.add_task, COL["primary"], height=44)
+        self.apply_add_panel_layout(MAX_CONTENT_WIDTH)
         self.paste = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=14, border_width=1, border_color=COL["line"]); self.paste.grid_columnconfigure(0, weight=1)
         self.paste_text = ctk.CTkTextbox(self.paste, height=110, font=READ_BODY_FONT); self.paste_text.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
         self.make_btn(self.paste, "\ubd99\uc5ec\ub123\uae30 \ucd94\uac00", self.add_pasted_tree, COL["primary"]).grid(row=0, column=1, padx=(0,12), pady=12, sticky="ns")
         self.toolbar = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=14, border_width=1, border_color=COL["line"])
-        self.toolbar.grid(row=3, column=0, sticky="ew", pady=(0, 12)); self.toolbar.grid_columnconfigure((0,1), weight=1)
+        self.toolbar.grid(row=3, column=0, sticky="ew", pady=(0, 12)); self.toolbar.grid_columnconfigure((0,1,2), weight=1)
         tb = self.toolbar
         self.action_group(tb, "\uad6c\uc870", [("\ud604\uc7ac \uad6c\uc870 \ubcf4\uae30", self.show_tree_view), ("\uad6c\uc870 \ubd99\uc5ec\ub123\uae30", self.toggle_paste), ("\uc791\uc5c5 \uad6c\uc870 \ub0b4\ubcf4\ub0b4\uae30", self.export_txt), ("\ud604\uc7ac \ud558\uc704 \uba54\ubaa8\ud654", self.memoize_current)], 0)
         self.action_group(tb, "\uc774\ub3d9", [("\ucc98\uc74c\uc73c\ub85c", self.go_root), ("\uc0c1\uc704\ub85c", self.move_to_parent)], 1)
-        if not self.tools_open: self.toolbar.grid_remove()
+        self.action_group(tb, "UI", [("UI \ud3b8\uc9d1", self.toggle_layout_edit), ("\ubc30\uce58 \ucd08\uae30\ud654", self.reset_layout_edit)], 2)
+        self.layout_edit_bar = ctk.CTkFrame(self.content, fg_color=COL["hero_soft"], corner_radius=14, border_width=1, border_color=COL["primary"])
+        self.layout_edit_bar.grid(row=5, column=0, sticky="ew", pady=(0, 12)); self.layout_edit_bar.grid_columnconfigure(0, weight=1)
+        self.layout_edit_label = ctk.CTkLabel(self.layout_edit_bar, text="", font=SMALL_FONT, text_color=COL["text"], anchor="w")
+        self.layout_edit_label.grid(row=0, column=0, sticky="ew", padx=14, pady=8)
+        self.layout_side_handle = self.make_btn(self.layout_edit_bar, "\uc67c\ucabd \ud3ed \ub4dc\ub798\uadf8", self.noop, variant="nav", height=30)
+        self.layout_side_handle.grid(row=0, column=1, sticky="e", padx=(0, 8), pady=8)
+        self.layout_side_handle.bind("<ButtonPress-1>", lambda e: self.start_layout_drag("sideWidth", e), add="+")
+        self.layout_side_handle.bind("<B1-Motion>", lambda e: self.drag_layout_size("sideWidth", e), add="+")
+        self.layout_side_handle.bind("<ButtonRelease-1>", lambda e: self.finish_layout_drag(), add="+")
+        self.layout_card_handle = self.make_btn(self.layout_edit_bar, "\uc791\uc5c5 \uce74\ub4dc \ub192\uc774 \uc7a1\uace0 \ub4dc\ub798\uadf8", self.noop, variant="nav", height=30)
+        self.layout_card_handle.grid(row=0, column=2, sticky="e", padx=(0, 8), pady=8)
+        self.layout_card_handle.bind("<ButtonPress-1>", lambda e: self.start_layout_drag("cardHeight", e), add="+")
+        self.layout_card_handle.bind("<B1-Motion>", lambda e: self.drag_layout_size("cardHeight", e), add="+")
+        self.layout_card_handle.bind("<ButtonRelease-1>", lambda e: self.finish_layout_drag(), add="+")
+        self.layout_detail_handle = self.make_btn(self.layout_edit_bar, "\uc624\ub978\ucabd \ud3ed \ub4dc\ub798\uadf8", self.noop, variant="nav", height=30)
+        self.layout_detail_handle.grid(row=0, column=3, sticky="e", padx=(0, 10), pady=8)
+        self.layout_detail_handle.bind("<ButtonPress-1>", lambda e: self.start_layout_drag("detailWidth", e), add="+")
+        self.layout_detail_handle.bind("<B1-Motion>", lambda e: self.drag_layout_size("detailWidth", e), add="+")
+        self.layout_detail_handle.bind("<ButtonRelease-1>", lambda e: self.finish_layout_drag(), add="+")
+        if not self.layout_edit_mode:
+            self.layout_edit_bar.grid_remove()
+        self.tools_open = True
         self.activity_controls = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=16, border_width=1, border_color=COL["line"])
         self.activity_controls.grid(row=4, column=0, sticky="ew", pady=(0, 12)); self.activity_controls.grid_columnconfigure(3, weight=1)
         self.activity_status = ctk.CTkLabel(self.activity_controls, text="", text_color=COL["muted"], anchor="w", font=SMALL_FONT); self.activity_status.grid(row=0, column=0, sticky="w", padx=(14, 8), pady=(9, 4))
@@ -1138,6 +1212,25 @@ class App(ctk.CTk):
         for mode, btn in self.top_tabs.items():
             active = self.view_mode == mode
             btn.configure(
+                fg_color=COL["primary"] if active else COL["panel"],
+                hover_color=COL["primary_hover"] if active else COL["hero_soft"],
+                text_color="white" if active else COL["text"],
+                border_color=COL["primary"] if active else COL["line"],
+            )
+        self.refresh_top_action_buttons()
+
+    def refresh_top_action_buttons(self):
+        if hasattr(self, "top_layout_button"):
+            active = bool(getattr(self, "layout_edit_mode", False))
+            self.top_layout_button.configure(
+                fg_color=COL["primary"] if active else COL["panel"],
+                hover_color=COL["primary_hover"] if active else COL["hero_soft"],
+                text_color="white" if active else COL["text"],
+                border_color=COL["primary"] if active else COL["line"],
+            )
+        if hasattr(self, "top_tool_button"):
+            active = bool(getattr(self, "tools_open", False))
+            self.top_tool_button.configure(
                 fg_color=COL["primary"] if active else COL["panel"],
                 hover_color=COL["primary_hover"] if active else COL["hero_soft"],
                 text_color="white" if active else COL["text"],
@@ -1170,9 +1263,148 @@ class App(ctk.CTk):
         self.refresh_workspace()
 
     def toggle_tools(self):
-        self.tools_open = not self.tools_open
+        self.tools_open = True
         if hasattr(self, "toolbar"):
-            self.toolbar.grid() if self.tools_open else self.toolbar.grid_remove()
+            self.toolbar.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        self.refresh_top_action_buttons()
+
+    def noop(self):
+        return None
+
+    def widget_alive(self, widget):
+        try:
+            return widget is not None and bool(widget.winfo_exists())
+        except Exception:
+            return False
+
+    def request_save(self, delay=450):
+        if self.save_after_id:
+            try: self.after_cancel(self.save_after_id)
+            except Exception: pass
+        self.save_after_id = self.after(delay, self.flush_deferred_save)
+
+    def flush_deferred_save(self):
+        self.save_after_id = None
+        self.store.save()
+
+    def toggle_layout_edit(self):
+        self.layout_edit_mode = not self.layout_edit_mode
+        self.store.state.setdefault("ui", {})["layoutEditMode"] = self.layout_edit_mode
+        if hasattr(self, "layout_edit_bar"):
+            self.layout_edit_bar.grid() if self.layout_edit_mode else self.layout_edit_bar.grid_remove()
+        self.refresh_layout_edit_controls()
+        self.refresh_top_action_buttons()
+        self.request_save()
+
+    def reset_layout_edit(self):
+        self.layout_state.clear()
+        self.layout_state.update({"sideWidth": 292, "detailWidth": 390, "cardHeight": VROW_HEIGHT, "contentWidth": DEFAULT_CONTENT_WIDTH})
+        self.store.state.setdefault("ui", {})["layout"] = self.layout_state
+        self.refresh_layout_edit_controls()
+        self.request_save()
+        self.rebuild_layout()
+
+    def refresh_layout_edit_controls(self):
+        if hasattr(self, "layout_edit_label"):
+            self.layout_edit_label.configure(text=f"\ubc30\uce58 \ud3b8\uc9d1: \ud30c\ub780 \ud14c\ub450\ub9ac\ub97c \uc9c1\uc811 \ub4dc\ub798\uadf8\ud558\uba74 \ud06c\uae30\uac00 \ubc14\ub00d\ub2c8\ub2e4 · \uc911\uc559 {self.layout_size('contentWidth',DEFAULT_CONTENT_WIDTH,560,1600)}px · \uc67c\ucabd {self.layout_size('sideWidth',292,220,420)}px · \uc624\ub978\ucabd {self.layout_size('detailWidth',390,280,560)}px · \uce74\ub4dc {self.layout_size('cardHeight',VROW_HEIGHT,68,150)}px")
+        edit_widgets = (
+            getattr(self, "side", None),
+            getattr(self, "topbar", None),
+            getattr(self, "hero", None),
+            getattr(self, "add_panel", None),
+            getattr(self, "toolbar", None),
+            getattr(self, "activity_controls", None),
+            getattr(self, "layout_edit_bar", None),
+            getattr(self, "detail", None),
+            getattr(self, "memo_body", None),
+        )
+        for widget in edit_widgets:
+            if self.widget_alive(widget):
+                try:
+                    widget.configure(border_width=2 if self.layout_edit_mode else 1, border_color=COL["primary"] if self.layout_edit_mode else COL["line"])
+                except tk.TclError:
+                    pass
+        for widget in (getattr(self, "topbar", None), getattr(self, "hero", None), getattr(self, "add_panel", None), getattr(self, "toolbar", None), getattr(self, "activity_controls", None), getattr(self, "layout_edit_bar", None)):
+            self.bind_layout_edit_drag(widget, "contentWidth")
+        self.bind_layout_edit_drag(getattr(self, "side", None), "sideWidth")
+        self.bind_layout_edit_drag(getattr(self, "detail", None), "detailWidth")
+        self.bind_layout_edit_drag(getattr(self, "memo_body", None), "detailWidth")
+        self.bind_layout_edit_drag(getattr(self, "cards", None), "cardHeight")
+        if self.widget_alive(getattr(self, "cards", None)):
+            try:
+                self.cards.configure(
+                    highlightthickness=2 if self.layout_edit_mode else 0,
+                    highlightbackground=COL["primary"],
+                    highlightcolor=COL["primary"],
+                )
+            except tk.TclError:
+                pass
+
+    def bind_layout_edit_drag(self, widget, key):
+        if not self.widget_alive(widget):
+            return
+        marker = f"_layout_drag_bound_{key}"
+        targets = [widget]
+        internal_canvas = getattr(widget, "_canvas", None)
+        if self.widget_alive(internal_canvas):
+            targets.append(internal_canvas)
+        for target in targets:
+            if getattr(target, marker, False):
+                continue
+            try:
+                target.bind("<ButtonPress-1>", lambda e, k=key: self.start_layout_drag(k, e) if self.layout_edit_mode else None, add="+")
+                target.bind("<B1-Motion>", lambda e, k=key: self.drag_layout_size(k, e) if self.layout_edit_mode else None, add="+")
+                target.bind("<ButtonRelease-1>", lambda e: self.finish_layout_drag() if self.layout_edit_mode else None, add="+")
+                target.bind("<Enter>", lambda e, t=target, k=key: t.configure(cursor="sb_v_double_arrow" if k == "cardHeight" else "sb_h_double_arrow") if self.layout_edit_mode else None, add="+")
+                target.bind("<Leave>", lambda e, t=target: t.configure(cursor=""), add="+")
+                setattr(target, marker, True)
+            except tk.TclError:
+                pass
+
+    def start_layout_drag(self, key, event):
+        limits = {"sideWidth": (220, 420), "detailWidth": (280, 560), "cardHeight": (68, 150), "contentWidth": (560, 1600)}
+        default = VROW_HEIGHT if key == "cardHeight" else DEFAULT_CONTENT_WIDTH if key == "contentWidth" else 390 if key == "detailWidth" else 292
+        self.layout_drag = {"key": key, "x": event.x_root, "y": event.y_root, "start": self.layout_size(key, default, *limits[key]), "limits": limits[key]}
+        return "break"
+
+    def drag_layout_size(self, key, event):
+        drag = getattr(self, "layout_drag", None)
+        if not drag or drag.get("key") != key:
+            return "break"
+        low, high = drag["limits"]
+        if key == "cardHeight":
+            value = drag["start"] + int(event.y_root - drag["y"])
+        elif key == "detailWidth":
+            value = drag["start"] - int(event.x_root - drag["x"])
+        else:
+            value = drag["start"] + int(event.x_root - drag["x"])
+        value = max(low, min(high, value))
+        self.layout_state[key] = value
+        if key == "sideWidth" and self.widget_alive(getattr(self, "side", None)):
+            self.side.configure(width=value)
+        elif key == "detailWidth" and self.widget_alive(getattr(self, "detail", None)):
+            self.detail.configure(width=value)
+        elif key == "contentWidth" and self.widget_alive(getattr(self, "content", None)):
+            try:
+                available = max(360, self.main.winfo_width() - 8)
+                target = min(value, available)
+                self.content.configure(width=target)
+                self.apply_top_tab_layout(target)
+                self.apply_add_panel_layout(target)
+            except tk.TclError:
+                pass
+        elif key == "cardHeight":
+            self.render_virtual_rows()
+        self.refresh_layout_edit_controls()
+        return "break"
+
+    def finish_layout_drag(self):
+        if self.layout_drag:
+            self.layout_drag = None
+            self.request_save()
+            if hasattr(self, "cards") and self.view_mode not in ("activity", "matrix"):
+                self.render_virtual_rows()
+        return "break"
 
     def toggle_left_panel(self):
         self.left_panel_open = not self.left_panel_open
@@ -1207,14 +1439,15 @@ class App(ctk.CTk):
         if self.fit_after_id:
             try: self.after_cancel(self.fit_after_id)
             except Exception: pass
-        self.fit_after_id = self.after(70, self.apply_fit_main_content)
+        self.fit_after_id = self.after(160 if event else 1, self.apply_fit_main_content)
 
     def apply_fit_main_content(self):
         self.fit_after_id = None
         width = self.pending_main_width or self.main.winfo_width()
-        target = min(MAX_CONTENT_WIDTH, max(360, width - 8))
+        target = min(self.layout_size("contentWidth", DEFAULT_CONTENT_WIDTH, 560, 1600), max(360, width - 8))
         self.content.configure(width=target)
         self.apply_top_tab_layout(target)
+        self.apply_add_panel_layout(target)
         self.apply_responsive_panels()
 
     def register_scroll(self, frame):
@@ -1244,7 +1477,8 @@ class App(ctk.CTk):
             self.make_btn(frame, text, cmd, variant="danger" if text == "삭제" else "soft", height=32).grid(row=1 + i // 2, column=i % 2, sticky="ew", padx=3, pady=3)
 
     def build_detail(self):
-        self.detail = ctk.CTkFrame(self, fg_color=COL["detail_bg"], corner_radius=18, width=390)
+        detail_w = self.layout_size("detailWidth", 390, 280, 560)
+        self.detail = ctk.CTkFrame(self, fg_color=COL["detail_bg"], corner_radius=18, width=detail_w)
         self.detail.grid(row=0, column=2, sticky="nsew", padx=(0, 10), pady=10)
         self.detail.grid_propagate(False); self.detail.grid_columnconfigure(0, weight=1); self.detail.grid_rowconfigure(8, weight=1)
         ctk.CTkLabel(self.detail, text="\uc791\uc5c5 \uc0c1\ud0dc", font=(FONT, 22, "bold"), text_color=COL["text"], anchor="w").grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 6))
@@ -1264,13 +1498,14 @@ class App(ctk.CTk):
         self.date_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 5)); self.date_frame.grid_columnconfigure(0, weight=1); self.register_scroll(self.date_frame)
         self.memo_body = self.collapsible_detail_section("\uc120\ud0dd \uc791\uc5c5 \uba54\ubaa8", "memo", 5, height=300)
         self.memo_body.grid_columnconfigure(0, weight=1); self.memo_body.grid_rowconfigure(2, weight=1)
-        self.detail_title = ctk.CTkLabel(self.memo_body, text="\uc120\ud0dd \uc5c6\uc74c", font=(FONT, 20, "bold"), text_color=COL["text"], anchor="w", justify="left", wraplength=330)
+        self.detail_title = ctk.CTkLabel(self.memo_body, text="\uc120\ud0dd \uc5c6\uc74c", font=(FONT, 20, "bold"), text_color=COL["text"], anchor="w", justify="left", wraplength=max(210, detail_w - 60))
         self.detail_title.grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 4))
-        self.detail_meta = ctk.CTkLabel(self.memo_body, text="\uc791\uc5c5\uc744 \uc120\ud0dd\ud558\uba74 \uba54\ubaa8\ub97c \uc791\uc131\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.", text_color=COL["muted"], anchor="w", justify="left", wraplength=330, font=SMALL_FONT)
+        self.detail_meta = ctk.CTkLabel(self.memo_body, text="\uc791\uc5c5\uc744 \uc120\ud0dd\ud558\uba74 \uba54\ubaa8\ub97c \uc791\uc131\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.", text_color=COL["muted"], anchor="w", justify="left", wraplength=max(210, detail_w - 60), font=SMALL_FONT)
         self.detail_meta.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
         self.memo = ctk.CTkTextbox(self.memo_body, fg_color=COL["detail_panel"], corner_radius=16, border_width=1, border_color=COL["line"], font=READ_BODY_FONT)
         self.memo.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 8))
         ctk.CTkButton(self.memo_body, text="\uba54\ubaa8 \uc800\uc7a5", command=self.save_memo, fg_color=COL["detail_button"], hover_color=COL["hero_soft"], text_color=COL["primary"], height=38, corner_radius=14, font=SMALL_FONT, border_width=1, border_color=COL["line"]).grid(row=3, column=0, sticky="ew", padx=8, pady=(0, 10))
+        self.refresh_layout_edit_controls()
 
     def refresh_activity_controls(self):
         if not hasattr(self, "activity_status"):
@@ -1371,7 +1606,7 @@ class App(ctk.CTk):
     def set_kind(self, kind): self.card_render_limit = CARD_RENDER_BATCH; self.kind_filter = kind; self.refresh_cards()
     def set_date_filter(self, mode): self.date_filter = mode; self.current_date = None; self.current_date_mode = None; self.refresh_side()
     def save_refresh(self):
-        self.store.save()
+        self.request_save(180)
         self.refresh_path(); self.refresh_cards(); self.refresh_detail(); self.schedule_side_refresh()
 
     def schedule_side_refresh(self):
@@ -1917,8 +2152,10 @@ class App(ctk.CTk):
             self.sync_virtual_scrollbar()
             return
         self.ensure_virtual_row_pool()
-        start = max(0, self.virtual_scroll_y // VROW_HEIGHT)
-        offset = -(self.virtual_scroll_y % VROW_HEIGHT)
+        row_h = self.virtual_row_height()
+        card_h = max(60, row_h - 8)
+        start = max(0, self.virtual_scroll_y // row_h)
+        offset = -(self.virtual_scroll_y % row_h)
         needed = self.virtual_visible_count()
         self.drop_targets = {}
         for pool_index, row in enumerate(self.virtual_row_widgets):
@@ -1928,14 +2165,25 @@ class App(ctk.CTk):
                 row["nid"] = None
                 continue
             nid = self.virtual_ids[data_index]
-            y = offset + pool_index * VROW_HEIGHT
+            y = offset + pool_index * row_h
             row["nid"] = nid
             self.update_virtual_row(row, nid)
             self.cards.coords(row["item"], 8, y + 4)
-            self.cards.itemconfigure(row["item"], width=max(100, width - 18), height=78, state="normal")
+            self.cards.itemconfigure(row["item"], width=max(100, width - 18), height=card_h, state="normal")
             self.drop_targets[row["frame"]] = nid
         self.cards.configure(scrollregion=(0, 0, width, self.virtual_total_height()))
         self.sync_virtual_scrollbar()
+
+    def virtual_row_height(self):
+        base = int(self.layout_state.get("cardHeight", VROW_HEIGHT)) if hasattr(self, "layout_state") else VROW_HEIGHT
+        return max(68, min(150, base))
+
+    def layout_size(self, key, default, low, high):
+        try:
+            value = int(self.layout_state.get(key, default))
+        except Exception:
+            value = default
+        return max(low, min(high, value))
 
     def update_virtual_row(self, row, nid):
         n = self.store.node(nid)
@@ -2007,11 +2255,13 @@ class App(ctk.CTk):
         return row
 
     def schedule_virtual_hover(self, row):
-        if not row["nid"] or self.drag_source:
+        if not row.get("nid") or self.drag_source:
             return
-        if row["hover_job"] or (row.get("panel") and row["panel"].winfo_manager()):
-            return
-        row["hover_job"] = row["frame"].after(110, lambda r=row: self.open_virtual_panel(r))
+        try:
+            row["frame"].configure(border_color=COL["primary"], border_width=2)
+            self.cards.configure(cursor="hand2")
+        except tk.TclError:
+            pass
 
     def schedule_virtual_close(self, row):
         if row["hover_job"]:
@@ -2020,7 +2270,16 @@ class App(ctk.CTk):
             except Exception:
                 pass
             row["hover_job"] = None
-        row["frame"].after(120, lambda r=row: self.close_virtual_panel(r))
+        if row.get("panel"):
+            try:
+                row["panel"].place_forget()
+            except tk.TclError:
+                pass
+        try:
+            row["frame"].configure(border_color=COL["line"], border_width=1)
+            self.cards.configure(cursor="")
+        except tk.TclError:
+            pass
 
     def open_virtual_panel(self, row):
         row["hover_job"] = None
@@ -2068,16 +2327,17 @@ class App(ctk.CTk):
             return
         if row.get("panel"):
             row["panel"].place_forget()
-        row["frame"].configure(height=78, border_color=COL["line"], border_width=1)
-        self.cards.itemconfigure(row["item"], height=78)
+        card_h = max(60, self.virtual_row_height() - 8)
+        row["frame"].configure(height=card_h, border_color=COL["line"], border_width=1)
+        self.cards.itemconfigure(row["item"], height=card_h)
         row["badge"].place(relx=1.0, x=-124, y=28)
 
     def virtual_total_height(self):
-        return len(getattr(self, "virtual_ids", [])) * VROW_HEIGHT
+        return len(getattr(self, "virtual_ids", [])) * self.virtual_row_height()
 
     def virtual_visible_count(self):
         height = max(1, self.cards.winfo_height()) if hasattr(self, "cards") else 1
-        return max(1, min(len(getattr(self, "virtual_ids", [])) or 1, height // VROW_HEIGHT + VROW_BUFFER))
+        return max(1, min(len(getattr(self, "virtual_ids", [])) or 1, height // self.virtual_row_height() + VROW_BUFFER))
 
     def sync_virtual_scrollbar(self):
         total_h = max(1, self.virtual_total_height())
@@ -2100,7 +2360,7 @@ class App(ctk.CTk):
         elif args[0] == "scroll" and len(args) > 2:
             amount = int(args[1])
             unit = args[2]
-            step = VROW_HEIGHT * 5 if unit == "units" else int(view_h * 0.9)
+            step = self.virtual_row_height() * 5 if unit == "units" else int(view_h * 0.9)
             self.virtual_scroll_y += amount * step
         self.virtual_scroll_y = max(0, min(max_y, self.virtual_scroll_y))
         self.render_virtual_rows()
@@ -2115,7 +2375,7 @@ class App(ctk.CTk):
         steps = -1 if event.delta > 0 else 1
         if abs(event.delta) >= 120:
             steps = int(-event.delta / 120)
-        self.virtual_scroll_y = max(0, min(max_y, self.virtual_scroll_y + steps * VROW_HEIGHT * 5))
+        self.virtual_scroll_y = max(0, min(max_y, self.virtual_scroll_y + steps * self.virtual_row_height() * 5))
         self.render_virtual_rows()
         return "break"
 
@@ -2402,14 +2662,10 @@ class App(ctk.CTk):
                 card.configure(border_color=border)
                 layout_card()
         def schedule_show(_e=None):
-            if hide_job["id"]:
-                try: card.after_cancel(hide_job["id"])
-                except Exception: pass
-                hide_job["id"] = None
-            actions = action_ref["frame"]
-            if hover_job["id"] or (actions and actions.winfo_manager()):
-                return
-            hover_job["id"] = card.after(170, show_actions)
+            try:
+                card.configure(border_color=COL["primary"])
+            except tk.TclError:
+                pass
         def schedule_hide(_e=None):
             if hover_job["id"]:
                 try: card.after_cancel(hover_job["id"])
@@ -2418,7 +2674,16 @@ class App(ctk.CTk):
             if hide_job["id"]:
                 try: card.after_cancel(hide_job["id"])
                 except Exception: pass
-            hide_job["id"] = card.after(90, hide_actions)
+            actions = action_ref["frame"]
+            if actions:
+                try:
+                    actions.place_forget()
+                except tk.TclError:
+                    pass
+            try:
+                card.configure(border_color=border)
+            except tk.TclError:
+                pass
         def schedule_layout(_e=None):
             if layout_job["id"]:
                 try: card.after_cancel(layout_job["id"])
@@ -2678,28 +2943,40 @@ class App(ctk.CTk):
         self.drag_source=nid
         self.drag_last_target=None
         self.drag_last_after=False
+        self.drag_last_zone="inside"
         if event:
             self.drag_start_x=event.x_root; self.drag_start_y=event.y_root
 
+    def drag_drop_zone(self, y, top, height):
+        if height <= 0:
+            return False, "inside"
+        rel = max(0, min(height, y - top))
+        if rel < height * 0.28:
+            return False, "before"
+        if rel > height * 0.72:
+            return True, "after"
+        return False, "inside"
+
     def target_from_event(self,event):
-        w=self.winfo_containing(event.x_root,event.y_root); target=None; target_widget=None; after=False
+        w=self.winfo_containing(event.x_root,event.y_root); target=None; target_widget=None; after=False; zone="inside"
         while w:
             if w in self.drop_targets:
                 target=self.drop_targets[w]; target_widget=w
-                after = event.y_root > target_widget.winfo_rooty() + target_widget.winfo_height() / 2
+                after, zone = self.drag_drop_zone(event.y_root, target_widget.winfo_rooty(), target_widget.winfo_height())
                 break
             w=getattr(w,"master",None)
         if target:
-            return target, target_widget, after
+            return target, target_widget, after, zone
         if self.view_mode != "matrix" and getattr(self, "virtual_ids", None):
             local_y = event.y_root - self.cards.winfo_rooty()
             data_y = self.virtual_scroll_y + local_y
-            idx = int(data_y // VROW_HEIGHT)
+            row_h = self.virtual_row_height()
+            idx = int(data_y // row_h)
             if 0 <= idx < len(self.virtual_ids):
                 target = self.virtual_ids[idx]
-                after = (data_y % VROW_HEIGHT) > (VROW_HEIGHT / 2)
-                return target, None, after
-        return None, None, False
+                after, zone = self.drag_drop_zone(data_y, idx * row_h, row_h)
+                return target, None, after, zone
+        return None, None, False, "inside"
 
     def clear_drag_indicator(self):
         self.cards.delete("drag_indicator")
@@ -2713,9 +2990,10 @@ class App(ctk.CTk):
         moved = abs(event.x_root - self.drag_start_x) + abs(event.y_root - self.drag_start_y) >= 8
         if not moved:
             return
-        target, target_widget, after = self.target_from_event(event)
+        target, target_widget, after, zone = self.target_from_event(event)
         self.drag_last_target=target
         self.drag_last_after=after
+        self.drag_last_zone=zone
         self.cards.delete("drag_indicator")
         for row in getattr(self, "virtual_row_widgets", []):
             if row.get("nid"):
@@ -2725,12 +3003,13 @@ class App(ctk.CTk):
         src_node = self.store.node(self.drag_source); target_node = self.store.node(target)
         same_parent = src_node and target_node and src_node.get("parentId") == target_node.get("parentId")
         width=max(1,self.cards.winfo_width())
-        if same_parent:
+        if same_parent and zone != "inside":
             if target_widget:
                 y = target_widget.winfo_rooty() - self.cards.winfo_rooty() + (target_widget.winfo_height() if after else 0)
             else:
                 idx = self.virtual_ids.index(target) if target in self.virtual_ids else 0
-                y = idx * VROW_HEIGHT - self.virtual_scroll_y + (VROW_HEIGHT if after else 0)
+                row_h = self.virtual_row_height()
+                y = idx * row_h - self.virtual_scroll_y + (row_h if after else 0)
             self.cards.create_line(18, y, width-24, y, fill=COL["primary"], width=3, tags=("drag_indicator",))
             self.cards.create_text(width-120, max(12,y-18), text="위/아래 순서 변경", anchor="nw", fill=COL["primary"], font=(READ_FONT, 9, "bold"), tags=("drag_indicator",))
         else:
@@ -2738,23 +3017,24 @@ class App(ctk.CTk):
                 if row.get("nid") == target:
                     row["frame"].configure(border_color=COL["primary"], border_width=2)
                     break
-            self.cards.create_text(width-150, 10, text="작업 안으로 이동", anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("drag_indicator",))
+            self.cards.create_text(width-150, 10, text="작업 안으로 넣기", anchor="nw", fill=COL["primary"], font=(READ_FONT, 10, "bold"), tags=("drag_indicator",))
 
     def finish_drag(self,event):
         if not self.drag_source:
             return
         src=self.drag_source; self.drag_source=None
         moved = abs(event.x_root - self.drag_start_x) + abs(event.y_root - self.drag_start_y) >= 8
-        target, target_widget, after = self.target_from_event(event)
+        target, target_widget, after, zone = self.target_from_event(event)
         self.clear_drag_indicator()
         if not moved:
             self.open_node(src)
             return "break"
         if target and target != src:
             src_node = self.store.node(src); target_node = self.store.node(target)
-            if src_node and target_node and src_node.get("parentId") == target_node.get("parentId"):
+            if src_node and target_node and zone != "inside" and src_node.get("parentId") == target_node.get("parentId"):
                 if self.store.reorder_node(src, target, after=after): self.save_refresh(); return "break"
-            if self.store.move_node(src,target): self.save_refresh(); return "break"
+            if src_node and target_node and zone == "inside":
+                if self.store.move_node(src,target): self.save_refresh(); return "break"
         return "break"
 
     def release_card(self,event,nid):
@@ -2960,6 +3240,10 @@ class App(ctk.CTk):
             try: self.after_cancel(self.activity_poll_after_id)
             except Exception: pass
             self.activity_poll_after_id = None
+        if self.save_after_id:
+            try: self.after_cancel(self.save_after_id)
+            except Exception: pass
+            self.save_after_id = None
         self.activity_log.close_current()
         self.activity_log.conn.close()
         self.save_window_state(); self.store.save(); self.destroy()
@@ -3005,3 +3289,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
