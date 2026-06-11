@@ -112,7 +112,10 @@ def upload_knowledge(base_url: str, token: str, export_path: Path, *, title: str
     return request_json(f"{base_url}/api/knowledge/upload", method="POST", token=token, data=body, content_type=content_type)
 
 
-def replace_existing_taskory_sources(base_url: str, token: str, title: str) -> int:
+def delete_previous_taskory_sources(base_url: str, token: str, title: str, keep_source_id: int | str | None) -> int:
+    if keep_source_id is None:
+        return 0
+    keep_id = str(keep_source_id)
     response = request_json(f"{base_url}/api/knowledge", token=token)
     sources = response.get("sources") or []
     deleted = 0
@@ -123,6 +126,8 @@ def replace_existing_taskory_sources(base_url: str, token: str, title: str) -> i
             continue
         source_id = source.get("id")
         if source_id is None:
+            continue
+        if str(source_id) == keep_id:
             continue
         request_json(f"{base_url}/api/knowledge/{source_id}", method="DELETE", token=token)
         deleted += 1
@@ -156,9 +161,6 @@ def sync_once(args: argparse.Namespace, token: str) -> dict:
         count = export_jsonl(state_path, export_path)
         if args.dry_run:
             return {"status": "dry-run", "records": count, "export": str(export_path), "stateHash": current_hash}
-        replaced = 0
-        if not args.append:
-            replaced = replace_existing_taskory_sources(args.base_url.rstrip("/"), token, args.title)
         response = upload_knowledge(
             args.base_url.rstrip("/"),
             token,
@@ -170,6 +172,9 @@ def sync_once(args: argparse.Namespace, token: str) -> dict:
 
     write_last_hash(hash_path, current_hash)
     source = response.get("source", {})
+    replaced = 0
+    if not args.append:
+        replaced = delete_previous_taskory_sources(args.base_url.rstrip("/"), token, args.title, source.get("id"))
     return {
         "status": "uploaded",
         "records": count,
