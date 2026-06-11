@@ -1,7 +1,9 @@
 ﻿import json
+import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 import ctypes
 import traceback
@@ -9,6 +11,8 @@ import unicodedata
 import uuid
 import atexit
 import tempfile
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -123,6 +127,136 @@ SIDE_VISIBLE_LIMIT = 12
 VROW_HEIGHT = 86
 VROW_HOVER_HEIGHT = 86
 VROW_BUFFER = 6
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions"
+OPENAI_AUDIO_DIRECT_LIMIT = 24 * 1024 * 1024
+
+
+def openai_json_request(url, api_key, payload, timeout=90):
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"OpenAI 요청 실패: HTTP {exc.code} {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"OpenAI에 연결할 수 없습니다: {exc.reason}") from exc
+
+
+def multipart_form(fields, file_field, file_path):
+    boundary = f"----taskory-openai-{uuid.uuid4().hex}"
+    chunks = []
+    for name, value in fields.items():
+        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+        chunks.append(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("utf-8"))
+        chunks.append(str(value).encode("utf-8"))
+        chunks.append(b"\r\n")
+    chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+    chunks.append(
+        (
+            f'Content-Disposition: form-data; name="{file_field}"; filename="{Path(file_path).name}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode("utf-8")
+    )
+    chunks.append(Path(file_path).read_bytes())
+    chunks.append(b"\r\n")
+    chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+    return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
+
+
+def openai_transcribe_file(api_key, file_path, model="whisper-1", prompt=""):
+    body, content_type = multipart_form(
+        {"model": model, "response_format": "json", "prompt": prompt},
+        "file",
+        Path(file_path),
+    )
+    request = urllib.request.Request(
+        OPENAI_TRANSCRIPTION_URL,
+        data=body,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": content_type},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            return str(payload.get("text") or "").strip()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"OpenAI 음성 전사 실패: HTTP {exc.code} {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"OpenAI 음성 전사 연결 실패: {exc.reason}") from exc
+
+
+def split_audio_for_transcription(file_path):
+    source = Path(file_path)
+    if source.stat().st_size <= OPENAI_AUDIO_DIRECT_LIMIT:
+        return [source], None
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("24MB를 넘는 음성 파일은 ffmpeg가 필요합니다. ffmpeg를 PATH에 추가하거나 더 작은 파일을 선택하세요.")
+    temp_dir = tempfile.TemporaryDirectory(prefix="taskory-audio-")
+    output_pattern = str(Path(temp_dir.name) / "part_%03d.mp3")
+    command = [
+        ffmpeg,
+        "-y",
+        "-i",
+        str(source),
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "segment",
+        "-segment_time",
+        "600",
+        "-c:a",
+        "libmp3lame",
+        output_pattern,
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        temp_dir.cleanup()
+        raise RuntimeError("ffmpeg 음성 분할 실패:\n" + (result.stderr or result.stdout)[-1200:])
+    parts = sorted(Path(temp_dir.name).glob("part_*.mp3"))
+    if not parts:
+        temp_dir.cleanup()
+        raise RuntimeError("ffmpeg가 음성 조각을 만들지 못했습니다.")
+    return parts, temp_dir
+
+
+def openai_breakdown_text(api_key, text):
+    model = os.environ.get("TASKORY_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You convert rough notes into a Taskory import tree. "
+                    "Return only plain indented lines, no markdown fences. "
+                    "Use Korean when the input is Korean. Use two spaces for child indentation. "
+                    "Attach short details as memo lines starting with '> '. "
+                    "Use metadata like {today}, {important}, {priority=2}, or '- [x]' only when clearly implied."
+                ),
+            },
+            {"role": "user", "content": text},
+        ],
+        "temperature": 0.2,
+    }
+    response = openai_json_request(OPENAI_CHAT_URL, api_key, payload)
+    try:
+        content = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError("OpenAI 응답에서 작업 구조를 찾지 못했습니다.") from exc
+    return str(content).strip().strip("`").strip()
 
 TREE_MARK_RE = re.compile(r"^(?P<prefix>[\s\u2502|]*)(?P<mark>\u251c\u2500\u2500|\u2514\u2500\u2500|\u251c\u2500|\u2514\u2500|\u2523\u2501\u2501|\u2517\u2501\u2501|\u2523\u2501|\u2517\u2501|\|--|\+--|`--|\\--)[ \t]*(?P<title>.*)$")
 PLAIN_MARK_RE = re.compile(r"^(?P<indent> *)(?:(?P<check>[-*+]\s+\[[ xX]\])|(?P<bullet>[-*+])|(?P<number>\d+[.)]))\s+(?P<title>.*)$")
@@ -1164,11 +1298,12 @@ class App(ctk.CTk):
         self.paste_text = ctk.CTkTextbox(self.paste, height=110, font=READ_BODY_FONT); self.paste_text.grid(row=0, column=0, sticky="ew", padx=12, pady=12)
         self.make_btn(self.paste, "\ubd99\uc5ec\ub123\uae30 \ucd94\uac00", self.add_pasted_tree, COL["primary"]).grid(row=0, column=1, padx=(0,12), pady=12, sticky="ns")
         self.toolbar = ctk.CTkFrame(self.content, fg_color=COL["panel"], corner_radius=14, border_width=1, border_color=COL["line"])
-        self.toolbar.grid(row=3, column=0, sticky="ew", pady=(0, 12)); self.toolbar.grid_columnconfigure((0,1,2), weight=1)
+        self.toolbar.grid(row=3, column=0, sticky="ew", pady=(0, 12)); self.toolbar.grid_columnconfigure((0,1,2,3), weight=1)
         tb = self.toolbar
         self.action_group(tb, "\uad6c\uc870", [("\ud604\uc7ac \uad6c\uc870 \ubcf4\uae30", self.show_tree_view), ("\uad6c\uc870 \ubd99\uc5ec\ub123\uae30", self.toggle_paste), ("\uc791\uc5c5 \uad6c\uc870 \ub0b4\ubcf4\ub0b4\uae30", self.export_txt), ("\ud604\uc7ac \ud558\uc704 \uba54\ubaa8\ud654", self.memoize_current)], 0)
         self.action_group(tb, "\uc774\ub3d9", [("\ucc98\uc74c\uc73c\ub85c", self.go_root), ("\uc0c1\uc704\ub85c", self.move_to_parent)], 1)
         self.action_group(tb, "UI", [("UI \ud3b8\uc9d1", self.toggle_layout_edit), ("\ubc30\uce58 \ucd08\uae30\ud654", self.reset_layout_edit)], 2)
+        self.action_group(tb, "AI", [("AI 분해 미리보기", self.ai_preview_breakdown), ("음성 전사", self.ai_transcribe_audio)], 3)
         self.layout_edit_bar = ctk.CTkFrame(self.content, fg_color=COL["hero_soft"], corner_radius=14, border_width=1, border_color=COL["primary"])
         self.layout_edit_bar.grid(row=5, column=0, sticky="ew", pady=(0, 12)); self.layout_edit_bar.grid_columnconfigure(0, weight=1)
         self.layout_edit_label = ctk.CTkLabel(self.layout_edit_bar, text="", font=SMALL_FONT, text_color=COL["text"], anchor="w")
@@ -2888,6 +3023,93 @@ class App(ctk.CTk):
     def toggle_paste(self):
         if self.paste_open: self.paste.grid_forget(); self.paste_open=False
         else: self.paste.grid(row=4,column=0,sticky="ew",pady=(0,8)); self.paste_open=True
+
+    def ensure_paste_open(self):
+        if not self.paste_open:
+            self.toggle_paste()
+
+    def openai_api_key(self):
+        key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if key:
+            return key
+        key = simpledialog.askstring(APP_TITLE, "OpenAI API Key를 입력하세요.\n환경변수 OPENAI_API_KEY로도 설정할 수 있습니다.", show="*")
+        return (key or "").strip()
+
+    def paste_text_value(self):
+        text = self.paste_text.get("1.0", "end").strip() if hasattr(self, "paste_text") else ""
+        if text:
+            return text
+        try:
+            return (self.clipboard_get() or "").strip()
+        except Exception:
+            return ""
+
+    def ai_preview_breakdown(self):
+        self.ensure_paste_open()
+        source = self.paste_text_value()
+        if not source:
+            messagebox.showinfo(APP_TITLE, "먼저 붙여넣기 칸에 텍스트를 넣거나 클립보드에 내용을 복사하세요.")
+            return
+        api_key = self.openai_api_key()
+        if not api_key:
+            messagebox.showwarning(APP_TITLE, "OpenAI API Key가 없어 AI 분해를 실행하지 않았습니다.")
+            return
+        try:
+            self.configure(cursor="watch")
+            self.update_idletasks()
+            preview = openai_breakdown_text(api_key, source)
+            parsed = parse_tree_text_detailed(preview)
+            if parsed["errors"]:
+                messagebox.showwarning(APP_TITLE, "AI 미리보기는 만들었지만 붙여넣기 오류가 있습니다. 내용을 확인한 뒤 추가하세요.\n\n" + "\n".join(parsed["errors"][:6]))
+            self.paste_text.delete("1.0", "end")
+            self.paste_text.insert("1.0", preview)
+            messagebox.showinfo(APP_TITLE, "AI 작업 구조 미리보기를 만들었습니다. 확인 후 '붙여넣기 추가'를 누르면 현재 위치에 들어갑니다.")
+        except Exception as exc:
+            messagebox.showerror(APP_TITLE, str(exc))
+        finally:
+            self.configure(cursor="")
+
+    def ai_transcribe_audio(self):
+        api_key = self.openai_api_key()
+        if not api_key:
+            messagebox.showwarning(APP_TITLE, "OpenAI API Key가 없어 음성 전사를 실행하지 않았습니다.")
+            return
+        file_path = filedialog.askopenfilename(
+            title="전사할 음성 파일 선택",
+            filetypes=[
+                ("Audio files", "*.mp3 *.mp4 *.mpeg *.mpga *.m4a *.wav *.webm *.ogg *.flac"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not file_path:
+            return
+        prompt = simpledialog.askstring(APP_TITLE, "전사 힌트가 있으면 입력하세요. 비워도 됩니다.", initialvalue="작업과 메모로 정리할 회의 또는 음성 메모입니다.") or ""
+        model = os.environ.get("TASKORY_TRANSCRIBE_MODEL") or "whisper-1"
+        temp_dir = None
+        try:
+            self.configure(cursor="watch")
+            self.update_idletasks()
+            parts, temp_dir = split_audio_for_transcription(file_path)
+            transcripts = []
+            for index, part in enumerate(parts, start=1):
+                transcripts.append(openai_transcribe_file(api_key, part, model=model, prompt=prompt))
+                self.hint.configure(text=f"음성 전사 중... {index}/{len(parts)}")
+                self.update_idletasks()
+            transcript = "\n\n".join(part for part in transcripts if part).strip()
+            if not transcript:
+                raise RuntimeError("전사 결과가 비어 있습니다.")
+            self.ensure_paste_open()
+            self.paste_text.delete("1.0", "end")
+            self.paste_text.insert("1.0", transcript)
+            messagebox.showinfo(APP_TITLE, "음성 전사 결과를 붙여넣기 칸에 넣었습니다. AI 분해 미리보기를 누르거나 직접 편집한 뒤 추가하세요.")
+        except Exception as exc:
+            messagebox.showerror(APP_TITLE, str(exc))
+        finally:
+            if temp_dir:
+                temp_dir.cleanup()
+            self.hint.configure(text="")
+            self.configure(cursor="")
+
     def add_pasted_tree(self):
         parsed = parse_tree_text_detailed(self.paste_text.get("1.0", "end"))
         rows = parsed["rows"]
@@ -3264,6 +3486,16 @@ def smoke_test():
     if not store.node(child_id) or store.node(child_id).get("parentId") != parent_id:
         raise RuntimeError("TaskStore smoke test failed")
     with tempfile.TemporaryDirectory(prefix="taskory-smoke-") as tmp:
+        multipart_sample = Path(tmp) / "sample.txt"
+        multipart_sample.write_text("hello", encoding="utf-8")
+        body, content_type = multipart_form({"model": "whisper-1"}, "file", multipart_sample)
+        if b'name="file"; filename="sample.txt"' not in body or "multipart/form-data" not in content_type:
+            raise RuntimeError("OpenAI multipart smoke test failed")
+        audio_sample = Path(tmp) / "sample.wav"
+        audio_sample.write_bytes(b"RIFF0000WAVE")
+        parts, audio_tmp = split_audio_for_transcription(audio_sample)
+        if parts != [audio_sample] or audio_tmp is not None:
+            raise RuntimeError("Audio split smoke test failed")
         log = ActivityLog(Path(tmp) / "activity-log.db")
         try:
             log.switch_to("TaskorySmoke.exe", "Smoke window")

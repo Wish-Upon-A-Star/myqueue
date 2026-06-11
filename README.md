@@ -105,6 +105,9 @@ macOS data files:
 - Created/completed date views
 - Activity logging by app, title, time, and group
 - Mini memo mode
+- AI task breakdown from pasted text using an OpenAI API key
+- Audio transcription into task-ready text, including large-file splitting when `ffmpeg.exe` is available
+- AI preview before adding generated tasks and memos to the current folder
 - AI Board friendly JSONL export for RAG or Notion/GitHub automation handoff
 
 ## Paste tree example
@@ -125,6 +128,35 @@ Parent task
   Child task 2
     Smaller task
 ```
+
+## OpenAI task breakdown and audio transcription
+
+Taskory can turn rough pasted text into an import preview before anything is added to the current folder.
+
+1. Set `OPENAI_API_KEY`, or enter the key when Taskory asks for it.
+2. Open `도구`.
+3. Click `구조 붙여넣기`.
+4. Paste rough notes into the paste box.
+5. Click `AI 분해 미리보기`.
+6. Review or edit the generated tree.
+7. Click `붙여넣기 추가` only when the preview looks right.
+
+Optional model settings:
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+$env:TASKORY_OPENAI_MODEL="gpt-4o-mini"
+$env:TASKORY_TRANSCRIBE_MODEL="whisper-1"
+```
+
+Audio transcription:
+
+1. Click `도구` → `음성 전사`.
+2. Pick an audio file.
+3. Taskory sends the file to OpenAI transcription and places the transcript in the paste box.
+4. Click `AI 분해 미리보기` if you want the transcript converted into a task tree.
+
+Large audio files over 24MB require `ffmpeg` in `PATH`. When `ffmpeg` is available, Taskory splits the audio into smaller MP3 chunks and transcribes them in order.
 
 ## AI Board export
 
@@ -153,6 +185,42 @@ Each exported record contains:
 - `text`
 
 The `text` field is a compact Korean summary designed for search, RAG, and Notion/GitHub report generation.
+
+### AI Board sync
+
+You can also upload the current Taskory state directly to AI Board. The sync script logs in, exports JSONL, uploads it to `/api/knowledge/upload`, and skips repeated uploads when the state file has not changed.
+
+Dry-run without uploading:
+
+```bash
+python scripts/sync_taskory_to_ai_board.py --state task-explorer-state.json --dry-run
+```
+
+One-time upload:
+
+```bash
+python scripts/sync_taskory_to_ai_board.py ^
+  --state task-explorer-state.json ^
+  --base-url http://127.0.0.1:8000 ^
+  --email user@example.com ^
+  --password your-password ^
+  --title "Taskory 작업 동기화"
+```
+
+Watch mode:
+
+```bash
+python scripts/sync_taskory_to_ai_board.py --state task-explorer-state.json --watch --interval 300 --email user@example.com --password your-password
+```
+
+For automation runners, prefer environment variables instead of putting credentials in command history:
+
+```powershell
+$env:AI_BOARD_BASE_URL="http://127.0.0.1:8000"
+$env:AI_BOARD_EMAIL="user@example.com"
+$env:AI_BOARD_PASSWORD="your-password"
+python scripts/sync_taskory_to_ai_board.py --state task-explorer-state.json --watch
+```
 
 ## Development launch
 
