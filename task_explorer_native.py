@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 import ctypes
+import threading
 import traceback
 import unicodedata
 import uuid
@@ -3044,6 +3045,30 @@ class App(ctk.CTk):
         except Exception:
             return ""
 
+    def run_ai_job(self, status_text, worker, on_success):
+        self.configure(cursor="watch")
+        if hasattr(self, "hint"):
+            self.hint.configure(text=status_text)
+
+        def finish(result=None, error=None):
+            self.configure(cursor="")
+            if hasattr(self, "hint"):
+                self.hint.configure(text="")
+            if error:
+                messagebox.showerror(APP_TITLE, str(error))
+                return
+            on_success(result)
+
+        def thread_main():
+            try:
+                result = worker()
+            except Exception as exc:
+                self.after(0, lambda err=exc: finish(error=err))
+            else:
+                self.after(0, lambda value=result: finish(result=value))
+
+        threading.Thread(target=thread_main, daemon=True).start()
+
     def ai_preview_breakdown(self):
         self.ensure_paste_open()
         source = self.paste_text_value()
@@ -3054,20 +3079,20 @@ class App(ctk.CTk):
         if not api_key:
             messagebox.showwarning(APP_TITLE, "OpenAI API Key가 없어 AI 분해를 실행하지 않았습니다.")
             return
-        try:
-            self.configure(cursor="watch")
-            self.update_idletasks()
-            preview = openai_breakdown_text(api_key, source)
+
+        def apply_preview(preview):
             parsed = parse_tree_text_detailed(preview)
             if parsed["errors"]:
                 messagebox.showwarning(APP_TITLE, "AI 미리보기는 만들었지만 붙여넣기 오류가 있습니다. 내용을 확인한 뒤 추가하세요.\n\n" + "\n".join(parsed["errors"][:6]))
             self.paste_text.delete("1.0", "end")
             self.paste_text.insert("1.0", preview)
             messagebox.showinfo(APP_TITLE, "AI 작업 구조 미리보기를 만들었습니다. 확인 후 '붙여넣기 추가'를 누르면 현재 위치에 들어갑니다.")
-        except Exception as exc:
-            messagebox.showerror(APP_TITLE, str(exc))
-        finally:
-            self.configure(cursor="")
+
+        self.run_ai_job(
+            "AI가 작업 구조를 만드는 중입니다...",
+            lambda: openai_breakdown_text(api_key, source),
+            apply_preview,
+        )
 
     def ai_transcribe_audio(self):
         api_key = self.openai_api_key()
@@ -3085,30 +3110,32 @@ class App(ctk.CTk):
             return
         prompt = simpledialog.askstring(APP_TITLE, "전사 힌트가 있으면 입력하세요. 비워도 됩니다.", initialvalue="작업과 메모로 정리할 회의 또는 음성 메모입니다.") or ""
         model = os.environ.get("TASKORY_TRANSCRIBE_MODEL") or "whisper-1"
-        temp_dir = None
-        try:
-            self.configure(cursor="watch")
-            self.update_idletasks()
-            parts, temp_dir = split_audio_for_transcription(file_path)
+
+        def transcribe_worker():
+            temp_dir = None
             transcripts = []
-            for index, part in enumerate(parts, start=1):
-                transcripts.append(openai_transcribe_file(api_key, part, model=model, prompt=prompt))
-                self.hint.configure(text=f"음성 전사 중... {index}/{len(parts)}")
-                self.update_idletasks()
-            transcript = "\n\n".join(part for part in transcripts if part).strip()
-            if not transcript:
-                raise RuntimeError("전사 결과가 비어 있습니다.")
+            part_count = 0
+            try:
+                parts, temp_dir = split_audio_for_transcription(file_path)
+                part_count = len(parts)
+                for index, part in enumerate(parts, start=1):
+                    transcripts.append(openai_transcribe_file(api_key, part, model=model, prompt=prompt))
+                    self.after(0, lambda i=index, total=part_count: self.hint.configure(text=f"음성 전사 중... {i}/{total}"))
+                transcript = "\n\n".join(part for part in transcripts if part).strip()
+                if not transcript:
+                    raise RuntimeError("전사 결과가 비어 있습니다.")
+                return transcript
+            finally:
+                if temp_dir:
+                    temp_dir.cleanup()
+
+        def apply_transcript(transcript):
             self.ensure_paste_open()
             self.paste_text.delete("1.0", "end")
             self.paste_text.insert("1.0", transcript)
             messagebox.showinfo(APP_TITLE, "음성 전사 결과를 붙여넣기 칸에 넣었습니다. AI 분해 미리보기를 누르거나 직접 편집한 뒤 추가하세요.")
-        except Exception as exc:
-            messagebox.showerror(APP_TITLE, str(exc))
-        finally:
-            if temp_dir:
-                temp_dir.cleanup()
-            self.hint.configure(text="")
-            self.configure(cursor="")
+
+        self.run_ai_job("음성 파일을 전사하는 중입니다...", transcribe_worker, apply_transcript)
 
     def add_pasted_tree(self):
         parsed = parse_tree_text_detailed(self.paste_text.get("1.0", "end"))
