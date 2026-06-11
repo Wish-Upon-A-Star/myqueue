@@ -112,6 +112,23 @@ def upload_knowledge(base_url: str, token: str, export_path: Path, *, title: str
     return request_json(f"{base_url}/api/knowledge/upload", method="POST", token=token, data=body, content_type=content_type)
 
 
+def replace_existing_taskory_sources(base_url: str, token: str, title: str) -> int:
+    response = request_json(f"{base_url}/api/knowledge", token=token)
+    sources = response.get("sources") or []
+    deleted = 0
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        if source.get("title") != title or source.get("sourceType") != "taskory":
+            continue
+        source_id = source.get("id")
+        if source_id is None:
+            continue
+        request_json(f"{base_url}/api/knowledge/{source_id}", method="DELETE", token=token)
+        deleted += 1
+    return deleted
+
+
 def read_last_hash(path: Path) -> str:
     if not path.exists():
         return ""
@@ -139,6 +156,9 @@ def sync_once(args: argparse.Namespace, token: str) -> dict:
         count = export_jsonl(state_path, export_path)
         if args.dry_run:
             return {"status": "dry-run", "records": count, "export": str(export_path), "stateHash": current_hash}
+        replaced = 0
+        if not args.append:
+            replaced = replace_existing_taskory_sources(args.base_url.rstrip("/"), token, args.title)
         response = upload_knowledge(
             args.base_url.rstrip("/"),
             token,
@@ -155,6 +175,7 @@ def sync_once(args: argparse.Namespace, token: str) -> dict:
         "records": count,
         "sourceId": source.get("id"),
         "sourceTitle": source.get("title"),
+        "replaced": replaced,
         "stateHash": current_hash,
     }
 
@@ -175,6 +196,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tags", default=DEFAULT_TAGS, help="Comma separated tags")
     parser.add_argument("--hash-file", type=Path, default=Path(".taskory-ai-board-sync.sha256"), help="Last synced hash file")
     parser.add_argument("--force", action="store_true", help="Upload even when the state hash is unchanged")
+    parser.add_argument("--append", action="store_true", help="Keep previous Taskory knowledge sources instead of replacing the same title")
     parser.add_argument("--dry-run", action="store_true", help="Export and validate without uploading")
     parser.add_argument("--watch", action="store_true", help="Keep syncing in a loop")
     parser.add_argument("--interval", type=int, default=300, help="Watch interval seconds")

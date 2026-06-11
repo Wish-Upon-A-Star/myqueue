@@ -188,7 +188,7 @@ The `text` field is a compact Korean summary designed for search, RAG, and Notio
 
 ### AI Board sync
 
-You can also upload the current Taskory state directly to AI Board. The sync script logs in, exports JSONL, uploads it to `/api/knowledge/upload`, and skips repeated uploads when the state file has not changed.
+You can also upload the current Taskory state directly to AI Board. The sync script logs in, exports JSONL, replaces the previous Taskory knowledge source with the same title, uploads the new file to `/api/knowledge/upload`, and skips repeated uploads when the state file has not changed.
 
 Dry-run without uploading:
 
@@ -212,6 +212,8 @@ Watch mode:
 ```bash
 python scripts/sync_taskory_to_ai_board.py --state task-explorer-state.json --watch --interval 300 --email user@example.com --password your-password
 ```
+
+By default, the script replaces existing AI Board `taskory` knowledge with the same title so a long-running watcher does not create duplicate RAG sources. Add `--append` only when you intentionally want to keep historical snapshots.
 
 For automation runners, prefer environment variables instead of putting credentials in command history:
 
