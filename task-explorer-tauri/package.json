@@ -1,0 +1,14 @@
+{
+  "name": "task-explorer-tauri",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Taskory Tauri desktop app",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
